@@ -187,8 +187,6 @@ export default function EmployeeHub() {
     finally { setTeamLoading(false); }
   };
 
-  const overallScore = useMemo(() => myScores.length ? +(myScores.reduce((s, c) => s + c.myScore, 0) / myScores.length).toFixed(2) : 0, [myScores]);
-  const orgOverall = useMemo(() => myScores.length ? +(myScores.reduce((s, c) => s + c.orgAvg, 0) / myScores.length).toFixed(2) : 0, [myScores]);
 
   const allLocked = lockedPeople.every(p => completedReviews.has(p.primaryEmployeeId));
 
