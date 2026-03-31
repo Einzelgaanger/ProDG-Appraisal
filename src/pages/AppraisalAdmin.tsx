@@ -224,7 +224,7 @@ export default function AppraisalAdmin() {
       return `• [${qText}]: "${a.text_answer}"`;
     }).join('\n');
 
-    return `=== VGG 360° APPRAISAL ANALYTICS ===
+    return `=== ProDG 360° REVIEW ANALYTICS ===
 
 SUMMARY:
 • Total Responses: ${totalResponses}
