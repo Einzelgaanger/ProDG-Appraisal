@@ -16,9 +16,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Hardcoded credentials
 const VALID_CREDENTIALS = {
-  email: 'admin@vgg.com',
-  password: 'VGG360Analytics!',
-  name: 'VGG Admin',
+  email: 'admin@prodg.studio',
+  password: 'ProDG360Review!',
+  name: 'ProDG Admin',
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
