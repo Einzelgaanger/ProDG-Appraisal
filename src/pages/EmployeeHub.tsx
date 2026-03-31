@@ -163,36 +163,6 @@ export default function EmployeeHub() {
     finally { setSubmitting(false); }
   };
 
-  // Dashboard data
-  useEffect(() => {
-    if (activeTab === 'growth' && user && profile?.employee_id) loadDashboard();
-  }, [activeTab, user, profile]);
-
-  const loadDashboard = async () => {
-    if (!profile?.employee_id) return;
-    setDashLoading(true);
-    try {
-      const { data: myResp } = await supabase.from('survey_responses').select('id').eq('employee_id', profile.employee_id);
-      if (myResp?.length) {
-        const ids = myResp.map(r => r.id);
-        const [{ data: myAns }, { data: allAns }] = await Promise.all([
-          supabase.from('survey_answers').select('score, survey_questions(survey_categories(name))').in('response_id', ids).not('score', 'is', null),
-          supabase.from('survey_answers').select('score, survey_questions(survey_categories(name))').not('score', 'is', null),
-        ]);
-        const myCat: Record<string, number[]> = {};
-        const orgCat: Record<string, number[]> = {};
-        (myAns as any[])?.forEach(a => { const c = a.survey_questions?.survey_categories?.name; if (c && a.score) { (myCat[c] ??= []).push(a.score); } });
-        (allAns as any[])?.forEach(a => { const c = a.survey_questions?.survey_categories?.name; if (c && a.score) { (orgCat[c] ??= []).push(a.score); } });
-        setMyScores(Object.keys(myCat).map(c => ({
-          category: c,
-          myScore: +(myCat[c].reduce((a, b) => a + b, 0) / myCat[c].length).toFixed(2),
-          orgAvg: orgCat[c] ? +(orgCat[c].reduce((a, b) => a + b, 0) / orgCat[c].length).toFixed(2) : 0,
-        })));
-        setTotalReviews(myResp.length);
-      }
-    } catch (err) { console.error(err); }
-    finally { setDashLoading(false); }
-  };
 
   // Team pulse
   useEffect(() => {
