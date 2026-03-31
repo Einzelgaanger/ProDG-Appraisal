@@ -58,10 +58,6 @@ export default function EmployeeHub() {
   const [loading, setLoading] = useState(true);
   const [completedReviews, setCompletedReviews] = useState<Set<string>>(new Set());
 
-  // Dashboard
-  const [myScores, setMyScores] = useState<CategoryScore[]>([]);
-  const [totalReviews, setTotalReviews] = useState(0);
-  const [dashLoading, setDashLoading] = useState(true);
 
   // Team pulse
   const [teamData, setTeamData] = useState<{ totalReviews: number; avgScore: number; categories: { name: string; avg: number }[] }>({ totalReviews: 0, avgScore: 0, categories: [] });
