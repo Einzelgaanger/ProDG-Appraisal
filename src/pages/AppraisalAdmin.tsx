@@ -30,9 +30,9 @@ interface CategoryRow { id: string; name: string; sort_order: number; }
 interface QuestionRow { id: string; category_id: string; question_text: string; question_type: string; sort_order: number; }
 
 const CHART_COLORS = [
-  'hsl(145, 63%, 42%)', 'hsl(210, 72%, 45%)', 'hsl(38, 80%, 50%)',
-  'hsl(262, 83%, 58%)', 'hsl(0, 65%, 50%)', 'hsl(180, 60%, 40%)',
-  'hsl(320, 70%, 50%)', 'hsl(90, 50%, 45%)',
+  'hsl(0, 0%, 15%)', 'hsl(0, 0%, 35%)', 'hsl(0, 0%, 55%)',
+  'hsl(0, 0%, 70%)', 'hsl(0, 65%, 50%)', 'hsl(0, 0%, 45%)',
+  'hsl(0, 0%, 25%)', 'hsl(0, 0%, 60%)',
 ];
 
 export default function AppraisalAdmin() {

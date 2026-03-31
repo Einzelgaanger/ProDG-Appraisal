@@ -32,7 +32,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are an expert HR analytics assistant for VGG 360° Performance Reviews. You have comprehensive access to the complete appraisal dataset and must provide thorough, data-driven analysis.
+    const systemPrompt = `You are an expert HR analytics assistant for ProDG 360° Performance Reviews. You have comprehensive access to the complete review dataset and must provide thorough, data-driven analysis.
 
 === COMPLETE DATA CONTEXT ===
 ${dataContext}

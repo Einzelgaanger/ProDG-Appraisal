@@ -54,7 +54,7 @@ export default function Dashboard() {
       continueDoing: feedbackThemes.continueDoing.slice(0, 15).map(f => `• ${f}`).join('\n'),
     };
 
-    return `=== VGG 360° PERFORMANCE REVIEW DATA ===
+    return `=== ProDG 360° PERFORMANCE REVIEW DATA ===
 
 SUMMARY STATISTICS:
 • Total Responses: ${overallStats.totalResponses}
