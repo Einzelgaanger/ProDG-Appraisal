@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check for existing session
-    const savedUser = localStorage.getItem('vgg_user');
+    const savedUser = localStorage.getItem('prodg_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
