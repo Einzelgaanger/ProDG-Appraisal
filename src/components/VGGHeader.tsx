@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { LogOut, Menu, X } from 'lucide-react';
-import vggIcon from '@/assets/vgg-icon.png';
 
 interface VGGHeaderProps {
   subtitle?: string;
@@ -18,11 +17,11 @@ export default function VGGHeader({ subtitle, userName, onLogout, actions, maxWi
     <header className="border-b border-border/60 bg-card/60 backdrop-blur-xl sticky top-0 z-20">
       <div className={`${maxWidth} mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between`}>
         <div className="flex items-center gap-3 min-w-0">
-          <img src={vggIcon} alt="Venture Garden Group" className="h-7 sm:h-8 w-auto flex-shrink-0" />
+          <span className="text-lg font-extrabold tracking-tight text-foreground">ProDG</span>
           <div className="hidden sm:block h-5 w-px bg-border flex-shrink-0" />
           <div className="hidden sm:block min-w-0">
             <p className="text-xs font-bold text-foreground tracking-tight leading-none">
-              360° Appraisal
+              360° Review
             </p>
             {(subtitle || userName) && (
               <p className="text-[11px] text-muted-foreground leading-none mt-1 truncate">
