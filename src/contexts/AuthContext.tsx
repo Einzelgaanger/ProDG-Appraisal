@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (email === VALID_CREDENTIALS.email && password === VALID_CREDENTIALS.password) {
       const userData = { email, name: VALID_CREDENTIALS.name };
       setUser(userData);
-      localStorage.setItem('vgg_user', JSON.stringify(userData));
+      localStorage.setItem('prodg_user', JSON.stringify(userData));
       return true;
     }
     return false;
