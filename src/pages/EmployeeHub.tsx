@@ -12,6 +12,7 @@ import {
   CheckCircle2, ChevronRight, ChevronLeft, Send, Loader2, Shield,
   BarChart3, Users, Search, X, Lock, Plus, Minus, ClipboardList,
 } from 'lucide-react';
+import GrowthTab from '@/components/dashboard/GrowthTab';
 import { toast } from 'sonner';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer,
@@ -22,7 +23,7 @@ interface Employee { id: string; name: string; role: string | null; department: 
 interface Category { id: string; name: string; sort_order: number; }
 interface Question { id: string; category_id: string; question_text: string; question_type: string; sort_order: number; }
 interface PoolPerson { key: string; name: string; email: string | null; primaryEmployeeId: string; primarySubsidiaryId: string; }
-interface CategoryScore { category: string; myScore: number; orgAvg: number; }
+
 
 const SCALE_OPTIONS = [
   { value: 1, label: 'Rarely' },
@@ -57,10 +58,6 @@ export default function EmployeeHub() {
   const [loading, setLoading] = useState(true);
   const [completedReviews, setCompletedReviews] = useState<Set<string>>(new Set());
 
-  // Dashboard
-  const [myScores, setMyScores] = useState<CategoryScore[]>([]);
-  const [totalReviews, setTotalReviews] = useState(0);
-  const [dashLoading, setDashLoading] = useState(true);
 
   // Team pulse
   const [teamData, setTeamData] = useState<{ totalReviews: number; avgScore: number; categories: { name: string; avg: number }[] }>({ totalReviews: 0, avgScore: 0, categories: [] });
@@ -166,36 +163,6 @@ export default function EmployeeHub() {
     finally { setSubmitting(false); }
   };
 
-  // Dashboard data
-  useEffect(() => {
-    if (activeTab === 'growth' && user && profile?.employee_id) loadDashboard();
-  }, [activeTab, user, profile]);
-
-  const loadDashboard = async () => {
-    if (!profile?.employee_id) return;
-    setDashLoading(true);
-    try {
-      const { data: myResp } = await supabase.from('survey_responses').select('id').eq('employee_id', profile.employee_id);
-      if (myResp?.length) {
-        const ids = myResp.map(r => r.id);
-        const [{ data: myAns }, { data: allAns }] = await Promise.all([
-          supabase.from('survey_answers').select('score, survey_questions(survey_categories(name))').in('response_id', ids).not('score', 'is', null),
-          supabase.from('survey_answers').select('score, survey_questions(survey_categories(name))').not('score', 'is', null),
-        ]);
-        const myCat: Record<string, number[]> = {};
-        const orgCat: Record<string, number[]> = {};
-        (myAns as any[])?.forEach(a => { const c = a.survey_questions?.survey_categories?.name; if (c && a.score) { (myCat[c] ??= []).push(a.score); } });
-        (allAns as any[])?.forEach(a => { const c = a.survey_questions?.survey_categories?.name; if (c && a.score) { (orgCat[c] ??= []).push(a.score); } });
-        setMyScores(Object.keys(myCat).map(c => ({
-          category: c,
-          myScore: +(myCat[c].reduce((a, b) => a + b, 0) / myCat[c].length).toFixed(2),
-          orgAvg: orgCat[c] ? +(orgCat[c].reduce((a, b) => a + b, 0) / orgCat[c].length).toFixed(2) : 0,
-        })));
-        setTotalReviews(myResp.length);
-      }
-    } catch (err) { console.error(err); }
-    finally { setDashLoading(false); }
-  };
 
   // Team pulse
   useEffect(() => {
@@ -220,8 +187,6 @@ export default function EmployeeHub() {
     finally { setTeamLoading(false); }
   };
 
-  const overallScore = useMemo(() => myScores.length ? +(myScores.reduce((s, c) => s + c.myScore, 0) / myScores.length).toFixed(2) : 0, [myScores]);
-  const orgOverall = useMemo(() => myScores.length ? +(myScores.reduce((s, c) => s + c.orgAvg, 0) / myScores.length).toFixed(2) : 0, [myScores]);
 
   const allLocked = lockedPeople.every(p => completedReviews.has(p.primaryEmployeeId));
 
@@ -527,63 +492,7 @@ export default function EmployeeHub() {
 
           {/* ═══ MY GROWTH TAB ═══ */}
           <TabsContent value="growth" className="mt-4">
-            <motion.div {...pageT}>
-              {dashLoading ? (
-                <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin" /></div>
-              ) : myScores.length === 0 ? (
-                <div className="border-2 border-foreground/10 p-10 text-center">
-                  <div className="label-mono mb-2">// no_data</div>
-                  <h3 className="text-lg font-bold mb-2">No Reviews Yet</h3>
-                  <p className="text-sm text-muted-foreground">Once your peers review you, your growth data will appear here.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="border-2 border-foreground/10 p-5">
-                      <div className="label-mono mb-1">Your Score</div>
-                      <div className="text-3xl font-bold">{overallScore}<span className="text-sm text-muted-foreground">/5</span></div>
-                    </div>
-                    <div className="border-2 border-foreground/10 p-5">
-                      <div className="label-mono mb-1">Team Average</div>
-                      <div className="text-3xl font-bold">{orgOverall}<span className="text-sm text-muted-foreground">/5</span></div>
-                    </div>
-                    <div className="border-2 border-foreground/10 p-5">
-                      <div className="label-mono mb-1">Reviews Received</div>
-                      <div className="text-3xl font-bold">{totalReviews}</div>
-                    </div>
-                  </div>
-
-                  {myScores.length > 0 && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div className="border-2 border-foreground/10 p-5">
-                        <div className="label-mono mb-3">Radar</div>
-                        <ResponsiveContainer width="100%" height={280}>
-                          <RadarChart data={myScores}>
-                            <PolarGrid stroke="hsl(var(--foreground) / 0.1)" />
-                            <PolarAngleAxis dataKey="category" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                            <Radar name="You" dataKey="myScore" fill="hsl(var(--accent))" fillOpacity={0.3} stroke="hsl(var(--accent))" strokeWidth={2} />
-                            <Radar name="Team" dataKey="orgAvg" fill="hsl(var(--foreground))" fillOpacity={0.1} stroke="hsl(var(--foreground))" strokeWidth={1} strokeDasharray="4 4" />
-                          </RadarChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="border-2 border-foreground/10 p-5">
-                        <div className="label-mono mb-3">Breakdown</div>
-                        <ResponsiveContainer width="100%" height={280}>
-                          <BarChart data={myScores} layout="vertical">
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--foreground) / 0.08)" />
-                            <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 10 }} />
-                            <YAxis type="category" dataKey="category" width={100} tick={{ fontSize: 10 }} />
-                            <Tooltip />
-                            <Bar dataKey="myScore" fill="hsl(var(--accent))" name="You" />
-                            <Bar dataKey="orgAvg" fill="hsl(var(--foreground) / 0.2)" name="Team" />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </motion.div>
+            <GrowthTab user={user} profile={profile} categories={categories} questions={questions} />
           </TabsContent>
 
           {/* ═══ TEAM PULSE TAB ═══ */}
