@@ -42,7 +42,7 @@ export default function Login() {
             <ShieldCheck className="w-16 h-16 text-white/90 mx-auto mb-6" />
             <h2 className="text-3xl font-bold text-white mb-3 tracking-tight">Admin Console</h2>
             <p className="text-white/70 text-sm leading-relaxed max-w-sm">
-              Access the analytics dashboard, manage appraisal data, and generate performance insights across the organisation.
+             Access the analytics dashboard, manage review data, and generate performance insights across the organisation.
             </p>
           </motion.div>
         </div>
