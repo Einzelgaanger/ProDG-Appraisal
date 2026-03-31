@@ -59,10 +59,11 @@ export default function Login() {
           className="w-full max-w-sm"
         >
           <div className="mb-8">
-            <img src={vggLogo} alt="Venture Garden Group" className="h-8 w-auto mb-8" />
+            <span className="text-2xl font-extrabold tracking-tight text-foreground">ProDG</span>
+            <div className="mt-6" />
             <h1 className="text-2xl font-bold tracking-tight mb-1">Administrator Sign In</h1>
             <p className="text-muted-foreground text-sm">
-              VGG 360° Performance Analytics
+              ProDG 360° Performance Review
             </p>
           </div>
 
