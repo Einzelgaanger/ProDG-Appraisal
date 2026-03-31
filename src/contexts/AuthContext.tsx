@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('vgg_user');
+    localStorage.removeItem('prodg_user');
   };
 
   return (
