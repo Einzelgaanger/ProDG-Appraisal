@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Lock, Mail, AlertCircle, ArrowLeft, Users } from 'lucide-react';
-import vggLogo from '@/assets/vgg-logo.webp';
+import { Lock, Mail, AlertCircle, ArrowLeft, Users } from 'lucide-react';
 
 export default function EmployeeLogin() {
   const [email, setEmail] = useState('');
