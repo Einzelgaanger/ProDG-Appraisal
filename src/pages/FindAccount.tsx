@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import {
   Search, ArrowLeft, CheckCircle2, AlertCircle, Loader2, Building2, Mail,
 } from 'lucide-react';
-import vggLogo from '@/assets/vgg-logo.webp';
+import { Search, ArrowLeft, CheckCircle2, AlertCircle, Loader2, Building2, Mail } from 'lucide-react';
 
 interface EmployeeResult {
   id: string;
