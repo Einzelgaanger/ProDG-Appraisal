@@ -12,6 +12,7 @@ import {
   CheckCircle2, ChevronRight, ChevronLeft, Send, Loader2, Shield,
   BarChart3, Users, Search, X, Lock, Plus, Minus, ClipboardList,
 } from 'lucide-react';
+import GrowthTab from '@/components/dashboard/GrowthTab';
 import { toast } from 'sonner';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer,
