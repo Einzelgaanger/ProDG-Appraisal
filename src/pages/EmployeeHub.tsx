@@ -23,7 +23,7 @@ interface Employee { id: string; name: string; role: string | null; department: 
 interface Category { id: string; name: string; sort_order: number; }
 interface Question { id: string; category_id: string; question_text: string; question_type: string; sort_order: number; }
 interface PoolPerson { key: string; name: string; email: string | null; primaryEmployeeId: string; primarySubsidiaryId: string; }
-interface CategoryScore { category: string; myScore: number; orgAvg: number; }
+
 
 const SCALE_OPTIONS = [
   { value: 1, label: 'Rarely' },
