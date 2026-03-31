@@ -2,11 +2,10 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useEmployeeAuth } from '@/contexts/EmployeeAuthContext';
-
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Lock, Mail, AlertCircle, ArrowLeft, Users } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowLeft } from 'lucide-react';
 
 export default function EmployeeLogin() {
   const [email, setEmail] = useState('');
@@ -33,20 +32,23 @@ export default function EmployeeLogin() {
 
   return (
     <div className="min-h-screen flex bg-background">
-      {/* Left decorative panel */}
-      <div className="hidden lg:flex lg:w-[45%] bg-primary relative overflow-hidden items-center justify-center p-12">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:3rem_3rem]" />
-        <div className="relative z-10 text-center">
+      {/* Left panel */}
+      <div className="hidden lg:flex lg:w-[45%] bg-foreground relative overflow-hidden items-center justify-center p-12">
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.5) 39px, rgba(255,255,255,0.5) 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.5) 39px, rgba(255,255,255,0.5) 40px)',
+        }} />
+        <div className="relative z-10">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-            <Users className="w-16 h-16 text-white/90 mx-auto mb-6" />
-            <h2 className="text-3xl font-bold text-white mb-3 font-serif">Welcome Back</h2>
-            <p className="text-white/70 text-sm leading-relaxed max-w-sm">
-              Sign in to provide anonymous peer feedback, view your personal dashboard, and see how you rank against your colleagues.
+            <div className="mono text-accent text-xs mb-6 uppercase tracking-[0.2em]">// authenticate</div>
+            <h2 className="text-4xl font-bold text-background mb-4">PEER<br/>REVIEW_</h2>
+            <p className="text-background/50 text-sm leading-relaxed max-w-sm mb-8">
+              Sign in to give anonymous feedback to your teammates.
+              Not for awards. For growth.
             </p>
-            <div className="flex gap-3 justify-center mt-8">
-              {['Anonymous', 'Confidential', 'Secure'].map((label) => (
-                <span key={label} className="px-3 py-1.5 rounded-full bg-white/10 text-white/80 text-xs font-medium backdrop-blur-sm border border-white/10">
-                  {label}
+            <div className="flex gap-2">
+              {['Anonymous', 'Honest', 'Secure'].map(tag => (
+                <span key={tag} className="mono text-[9px] uppercase tracking-[0.15em] px-3 py-1.5 border border-background/20 text-background/60">
+                  {tag}
                 </span>
               ))}
             </div>
@@ -54,44 +56,33 @@ export default function EmployeeLogin() {
         </div>
       </div>
 
-      {/* Right form panel */}
+      {/* Right form */}
       <div className="flex-1 flex items-center justify-center relative p-6">
         <div className="absolute top-5 left-5">
           <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-1.5 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="w-4 h-4" /> Back
           </Button>
         </div>
-        
 
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
           className="w-full max-w-sm"
         >
           <div className="mb-8">
-            <span className="text-2xl font-extrabold tracking-tight text-foreground">ProDG</span>
+            <span className="text-2xl font-bold tracking-tight">ProDG</span>
             <div className="mt-6" />
-            <h1 className="text-2xl font-bold font-serif mb-1">Sign In</h1>
-            <p className="text-muted-foreground text-sm">
-              ProDG 360° Review Platform
-            </p>
+            <div className="label-mono mb-2">// sign_in</div>
+            <h1 className="text-2xl font-bold mb-1">Welcome Back</h1>
+            <p className="text-muted-foreground text-sm">ProDG 360° Peer Review</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">Email address</Label>
+              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 h-11"
-                  required
-                />
+                <Input id="email" type="email" placeholder="you@prodg.studio" value={email} onChange={e => setEmail(e.target.value)} className="pl-10 h-11 border-2" required />
               </div>
             </div>
 
@@ -99,54 +90,29 @@ export default function EmployeeLogin() {
               <Label htmlFor="password" className="text-sm font-medium">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 h-11"
-                  required
-                />
+                <Input id="password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="pl-10 h-11 border-2" required />
               </div>
             </div>
 
             {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm"
-              >
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {error}
+              <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 p-3 bg-destructive/10 border-2 border-destructive/20 text-destructive text-sm">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />{error}
               </motion.div>
             )}
 
-            <Button type="submit" disabled={loading} className="w-full h-11 font-semibold">
+            <Button type="submit" disabled={loading} className="w-full h-11 font-bold uppercase tracking-wider text-xs">
               {loading ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                  className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full"
-                />
-              ) : (
-                'Sign In'
-              )}
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full" />
+              ) : 'Sign In'}
             </Button>
           </form>
 
           <div className="mt-8 space-y-3 text-center">
-            <Link
-              to="/find-account"
-              className="text-sm text-primary hover:underline font-medium block"
-            >
-              First time? Find your account
+            <Link to="/find-account" className="text-sm text-foreground hover:text-accent font-medium block mono text-xs">
+              First time? Find your account →
             </Link>
-            <Link
-              to="/admin"
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors block"
-            >
-              Administrator access →
+            <Link to="/admin" className="text-xs text-muted-foreground hover:text-foreground block">
+              Admin access →
             </Link>
           </div>
         </motion.div>

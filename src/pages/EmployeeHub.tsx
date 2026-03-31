@@ -1,18 +1,16 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEmployeeAuth } from '@/contexts/EmployeeAuthContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import VGGHeader from '@/components/VGGHeader';
 import {
-  CheckCircle2, ChevronRight, ChevronLeft,
-  Building2, User, ClipboardList, Send, Loader2, Shield,
-  BarChart3, Trophy, Star, Users, Search, X
+  CheckCircle2, ChevronRight, ChevronLeft, Send, Loader2, Shield,
+  BarChart3, Users, Search, X, Lock, Plus, Minus, ClipboardList,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -20,662 +18,482 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
 
-interface Subsidiary { id: string; name: string; }
 interface Employee { id: string; name: string; role: string | null; department: string | null; subsidiary_id: string; email: string | null; }
 interface Category { id: string; name: string; sort_order: number; }
 interface Question { id: string; category_id: string; question_text: string; question_type: string; sort_order: number; }
+interface PoolPerson { key: string; name: string; email: string | null; primaryEmployeeId: string; primarySubsidiaryId: string; }
 interface CategoryScore { category: string; myScore: number; orgAvg: number; }
-interface RankedEmployee { employee_id: string; name: string; subsidiary: string; avgScore: number; totalReviews: number; }
 
 const SCALE_OPTIONS = [
-  { value: 5, label: 'Most Likely' },
-  { value: 4, label: 'Likely' },
-  { value: 3, label: 'Neutral' },
-  { value: 2, label: 'Unlikely' },
-  { value: 1, label: 'Least Likely' },
+  { value: 1, label: 'Rarely' },
+  { value: 2, label: 'Sometimes' },
+  { value: 3, label: 'Often' },
+  { value: 4, label: 'Usually' },
+  { value: 5, label: 'Consistently' },
 ];
 
-const pageTransition = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -8 },
-  transition: { duration: 0.2 },
-};
+const pageT = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.15 } };
 
 export default function EmployeeHub() {
   const { user, profile, isAdmin, logout } = useEmployeeAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'survey';
+  const activeTab = searchParams.get('tab') || 'review';
 
-  // Survey state
-  const [step, setStep] = useState<'subsidiary' | 'employee' | 'questions' | 'submitted'>('subsidiary');
-  const [subsidiaries, setSubsidiaries] = useState<Subsidiary[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  // Review flow
+  const [phase, setPhase] = useState<'pool' | 'box' | 'questions' | 'person-done'>('pool');
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [lockedPeople, setLockedPeople] = useState<PoolPerson[]>([]);
+  const [currentPersonIdx, setCurrentPersonIdx] = useState(0);
+  const [currentCatIdx, setCurrentCatIdx] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, number | string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [poolSearch, setPoolSearch] = useState('');
+
+  // Data
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [selectedSubsidiary, setSelectedSubsidiary] = useState<Subsidiary | null>(null);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [answers, setAnswers] = useState<Record<string, number | string>>({});
-  const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [completedEmployees, setCompletedEmployees] = useState<Set<string>>(new Set());
-  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [completedReviews, setCompletedReviews] = useState<Set<string>>(new Set());
 
-  // Dashboard state
+  // Dashboard
   const [myScores, setMyScores] = useState<CategoryScore[]>([]);
   const [totalReviews, setTotalReviews] = useState(0);
-  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashLoading, setDashLoading] = useState(true);
 
-  // Rankings state
-  const [rankings, setRankings] = useState<RankedEmployee[]>([]);
-  const [rankingsLoading, setRankingsLoading] = useState(true);
+  // Team pulse
+  const [teamData, setTeamData] = useState<{ totalReviews: number; avgScore: number; categories: { name: string; avg: number }[] }>({ totalReviews: 0, avgScore: 0, categories: [] });
+  const [teamLoading, setTeamLoading] = useState(true);
 
-  // All employees for department counts
-  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
+  // Load data
+  useEffect(() => {
+    (async () => {
+      try {
+        const [empRes, catRes, qRes] = await Promise.all([
+          supabase.from('employees').select('*').order('name'),
+          supabase.from('survey_categories').select('*').order('sort_order'),
+          supabase.from('survey_questions').select('*').order('sort_order'),
+        ]);
+        if (empRes.data) setAllEmployees(empRes.data);
+        if (catRes.data) setCategories(catRes.data);
+        if (qRes.data) setQuestions(qRes.data);
+      } catch (err) { console.error(err); }
+      finally { setLoading(false); }
+    })();
+  }, []);
 
-  // Load completions from database
+  // Load completions
   useEffect(() => {
     if (user) {
-      supabase
-        .from('review_completions')
-        .select('employee_id')
-        .eq('reviewer_id', user.id)
-        .then(({ data }) => {
-          if (data) setCompletedEmployees(new Set(data.map(d => d.employee_id)));
-        });
+      supabase.from('review_completions').select('employee_id').eq('reviewer_id', user.id)
+        .then(({ data }) => { if (data) setCompletedReviews(new Set(data.map(d => d.employee_id))); });
     }
   }, [user]);
 
-  const markEmployeeCompleted = async (employeeId: string) => {
-    if (user) {
-      await supabase.from('review_completions').insert({
-        reviewer_id: user.id,
-        employee_id: employeeId,
-      });
-    }
-    setCompletedEmployees(prev => {
+  // Deduplicated pool
+  const poolPeople = useMemo(() => {
+    const seen = new Map<string, PoolPerson>();
+    allEmployees.forEach(emp => {
+      const key = emp.email?.toLowerCase() || emp.name.toLowerCase().trim();
+      if (!seen.has(key)) {
+        seen.set(key, { key, name: emp.name, email: emp.email, primaryEmployeeId: emp.id, primarySubsidiaryId: emp.subsidiary_id });
+      }
+    });
+    // Remove self
+    const myEmail = profile?.email?.toLowerCase();
+    if (myEmail) seen.delete(myEmail);
+    return Array.from(seen.values());
+  }, [allEmployees, profile]);
+
+  const filteredPool = useMemo(() => {
+    if (!poolSearch.trim()) return poolPeople;
+    const q = poolSearch.toLowerCase();
+    return poolPeople.filter(p => p.name.toLowerCase().includes(q) || (p.email && p.email.toLowerCase().includes(q)));
+  }, [poolPeople, poolSearch]);
+
+  const toggleSelect = (key: string) => {
+    setSelectedKeys(prev => {
       const next = new Set(prev);
-      next.add(employeeId);
+      next.has(key) ? next.delete(key) : next.add(key);
       return next;
     });
   };
 
-  useEffect(() => { loadData(); }, []);
-
-  const loadData = async () => {
-    try {
-      const [subRes, catRes, qRes, allEmpRes] = await Promise.all([
-        supabase.from('subsidiaries').select('*').order('name'),
-        supabase.from('survey_categories').select('*').order('sort_order'),
-        supabase.from('survey_questions').select('*').order('sort_order'),
-        supabase.from('employees').select('*').order('name'),
-      ]);
-      if (subRes.data) setSubsidiaries(subRes.data);
-      if (catRes.data) setCategories(catRes.data);
-      if (qRes.data) setQuestions(qRes.data);
-      if (allEmpRes.data) setAllEmployees(allEmpRes.data);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+  const lockIn = () => {
+    const people = poolPeople.filter(p => selectedKeys.has(p.key));
+    setLockedPeople(people);
+    setPhase('box');
   };
 
-  // Load dashboard data
-  useEffect(() => {
-    if (activeTab === 'dashboard' && user && profile?.employee_id) {
-      loadDashboardData();
-    }
-  }, [activeTab, user, profile]);
-
-  const loadDashboardData = async () => {
-    if (!profile?.employee_id || !user) return;
-    setDashboardLoading(true);
-    try {
-      const { data: myResponses } = await supabase
-        .from('survey_responses')
-        .select('id')
-        .eq('employee_id', profile.employee_id);
-
-      if (myResponses?.length) {
-        const responseIds = myResponses.map(r => r.id);
-        const { data: myAnswers } = await supabase
-          .from('survey_answers')
-          .select('score, survey_questions(question_text, survey_categories(name))')
-          .in('response_id', responseIds)
-          .not('score', 'is', null);
-
-        const { data: allAnswers } = await supabase
-          .from('survey_answers')
-          .select('score, survey_questions(survey_categories(name))')
-          .not('score', 'is', null);
-
-        const myCatScores: Record<string, number[]> = {};
-        const orgCatScores: Record<string, number[]> = {};
-
-        (myAnswers as any[])?.forEach(a => {
-          const cat = a.survey_questions?.survey_categories?.name;
-          if (cat && a.score) {
-            if (!myCatScores[cat]) myCatScores[cat] = [];
-            myCatScores[cat].push(a.score);
-          }
-        });
-
-        (allAnswers as any[])?.forEach(a => {
-          const cat = a.survey_questions?.survey_categories?.name;
-          if (cat && a.score) {
-            if (!orgCatScores[cat]) orgCatScores[cat] = [];
-            orgCatScores[cat].push(a.score);
-          }
-        });
-
-        const cats = Object.keys(myCatScores);
-        setMyScores(cats.map(cat => ({
-          category: cat,
-          myScore: parseFloat((myCatScores[cat].reduce((a, b) => a + b, 0) / myCatScores[cat].length).toFixed(2)),
-          orgAvg: orgCatScores[cat]
-            ? parseFloat((orgCatScores[cat].reduce((a, b) => a + b, 0) / orgCatScores[cat].length).toFixed(2))
-            : 0,
-        })));
-        setTotalReviews(myResponses.length);
-      }
-    } catch (err) {
-      console.error('Dashboard load error:', err);
-    } finally {
-      setDashboardLoading(false);
-    }
+  const startReview = (idx: number) => {
+    setCurrentPersonIdx(idx);
+    setCurrentCatIdx(0);
+    setAnswers({});
+    setPhase('questions');
   };
 
-  // Load rankings
-  useEffect(() => {
-    if (activeTab === 'rankings') {
-      loadRankings();
-    }
-  }, [activeTab]);
-
-  const loadRankings = async () => {
-    setRankingsLoading(true);
-    try {
-      const { data: emps } = await supabase.from('employees').select('id, name, subsidiaries(name)');
-      const { data: responses } = await supabase.from('survey_responses').select('employee_id, survey_answers(score)');
-
-      if (!emps || !responses) return;
-
-      const scoreMap: Record<string, { scores: number[]; count: number }> = {};
-      responses.forEach((r: any) => {
-        if (!scoreMap[r.employee_id]) scoreMap[r.employee_id] = { scores: [], count: 0 };
-        scoreMap[r.employee_id].count++;
-        r.survey_answers?.forEach((a: any) => {
-          if (a.score) scoreMap[r.employee_id].scores.push(a.score);
-        });
-      });
-
-      const ranked: RankedEmployee[] = emps
-        .filter((e: any) => scoreMap[e.id]?.scores.length > 0)
-        .map((e: any) => ({
-          employee_id: e.id,
-          name: e.name,
-          subsidiary: e.subsidiaries?.name || 'Unknown',
-          avgScore: parseFloat((scoreMap[e.id].scores.reduce((a, b) => a + b, 0) / scoreMap[e.id].scores.length).toFixed(2)),
-          totalReviews: scoreMap[e.id].count,
-        }))
-        .sort((a, b) => b.avgScore - a.avgScore);
-
-      setRankings(ranked);
-    } catch (err) { console.error(err); }
-    finally { setRankingsLoading(false); }
-  };
-
-  // Realtime subscriptions for live data
-  useEffect(() => {
-    const channel = supabase
-      .channel('employee-hub-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'survey_responses' }, () => {
-        if (activeTab === 'dashboard') loadDashboardData();
-        if (activeTab === 'rankings') loadRankings();
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [activeTab]);
-
-  const loadEmployees = async (subsidiaryId: string) => {
-    const { data } = await supabase.from('employees').select('*').eq('subsidiary_id', subsidiaryId).order('name');
-    if (data) setEmployees(data);
-  };
-
-  const handleSelectSubsidiary = (sub: Subsidiary) => {
-    setSelectedSubsidiary(sub);
-    loadEmployees(sub.id);
-    setStep('employee');
-    setEmployeeSearch('');
-  };
-
-  const handleSelectEmployee = (emp: Employee) => {
-    setSelectedEmployee(emp);
-    setStep('questions');
-    setCurrentCategoryIndex(0);
-  };
-
-  const currentCategory = categories[currentCategoryIndex];
-  const currentQuestions = currentCategory ? questions.filter(q => q.category_id === currentCategory.id) : [];
-
-  const isCurrentCategoryComplete = () => {
-    if (!currentCategory) return false;
-    return currentQuestions.every(q => q.question_type === 'open_ended' || answers[q.id] !== undefined);
-  };
-
-  const totalScoredQuestions = questions.filter(q => q.question_type === 'scored').length;
-  const answeredScoredQuestions = questions.filter(q => q.question_type === 'scored' && answers[q.id] !== undefined).length;
-  const progress = totalScoredQuestions > 0 ? (answeredScoredQuestions / totalScoredQuestions) * 100 : 0;
+  const currentCat = categories[currentCatIdx];
+  const currentQuestions = currentCat ? questions.filter(q => q.category_id === currentCat.id) : [];
+  const totalScored = questions.filter(q => q.question_type === 'scored').length;
+  const answeredScored = questions.filter(q => q.question_type === 'scored' && answers[q.id] !== undefined).length;
+  const progress = totalScored > 0 ? (answeredScored / totalScored) * 100 : 0;
+  const isCatComplete = () => currentQuestions.every(q => q.question_type === 'open_ended' || answers[q.id] !== undefined);
 
   const handleSubmit = async () => {
-    if (!selectedEmployee || !selectedSubsidiary) return;
+    const person = lockedPeople[currentPersonIdx];
+    if (!person) return;
     setSubmitting(true);
     try {
-      const { data: responseData, error: responseError } = await supabase
+      const { data, error: e1 } = await supabase
         .from('survey_responses')
-        .insert({ employee_id: selectedEmployee.id, subsidiary_id: selectedSubsidiary.id })
-        .select('id')
-        .single();
-      if (responseError) throw responseError;
-
-      const answerRows = Object.entries(answers).map(([questionId, value]) => ({
-        response_id: responseData.id,
-        question_id: questionId,
-        score: typeof value === 'number' ? value : null,
-        text_answer: typeof value === 'string' ? value : null,
+        .insert({ employee_id: person.primaryEmployeeId, subsidiary_id: person.primarySubsidiaryId })
+        .select('id').single();
+      if (e1) throw e1;
+      const rows = Object.entries(answers).map(([qid, val]) => ({
+        response_id: data.id, question_id: qid,
+        score: typeof val === 'number' ? val : null,
+        text_answer: typeof val === 'string' ? val : null,
       }));
-      const { error: answersError } = await supabase.from('survey_answers').insert(answerRows);
-      if (answersError) throw answersError;
-
-      markEmployeeCompleted(selectedEmployee.id);
-      setStep('submitted');
-      toast.success('Response submitted successfully.');
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to submit. Please try again.');
-    } finally { setSubmitting(false); }
+      const { error: e2 } = await supabase.from('survey_answers').insert(rows);
+      if (e2) throw e2;
+      // Mark completion
+      if (user) await supabase.from('review_completions').insert({ reviewer_id: user.id, employee_id: person.primaryEmployeeId });
+      setCompletedReviews(prev => { const n = new Set(prev); n.add(person.primaryEmployeeId); return n; });
+      setPhase('person-done');
+      toast.success('Feedback recorded.');
+    } catch (err) { console.error(err); toast.error('Failed to submit.'); }
+    finally { setSubmitting(false); }
   };
 
-  // Department counts for the selected subsidiary
-  const departmentCounts = useMemo(() => {
-    const emps = selectedSubsidiary ? allEmployees.filter(e => e.subsidiary_id === selectedSubsidiary.id) : [];
-    const counts: Record<string, number> = {};
-    emps.forEach(e => {
-      const dept = e.department || 'Unassigned';
-      counts[dept] = (counts[dept] || 0) + 1;
-    });
-    return counts;
-  }, [selectedSubsidiary, allEmployees]);
+  // Dashboard data
+  useEffect(() => {
+    if (activeTab === 'growth' && user && profile?.employee_id) loadDashboard();
+  }, [activeTab, user, profile]);
 
-  // Subsidiary employee counts
-  const subsidiaryCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    allEmployees.forEach(e => { counts[e.subsidiary_id] = (counts[e.subsidiary_id] || 0) + 1; });
-    return counts;
-  }, [allEmployees]);
-
-  // Filter employees by search
-  const filteredEmployees = useMemo(() => {
-    if (!employeeSearch.trim()) return employees;
-    const q = employeeSearch.toLowerCase();
-    return employees.filter(e =>
-      e.name.toLowerCase().includes(q) ||
-      (e.email && e.email.toLowerCase().includes(q)) ||
-      (e.department && e.department.toLowerCase().includes(q))
-    );
-  }, [employees, employeeSearch]);
-
-  // Group employees by department
-  const employeesByDepartment = useMemo(() => {
-    const groups: Record<string, Employee[]> = {};
-    filteredEmployees.forEach(e => {
-      const dept = e.department || 'Unassigned';
-      if (!groups[dept]) groups[dept] = [];
-      groups[dept].push(e);
-    });
-    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
-  }, [filteredEmployees]);
-
-  const overallScore = useMemo(() => {
-    if (!myScores.length) return 0;
-    return parseFloat((myScores.reduce((s, c) => s + c.myScore, 0) / myScores.length).toFixed(2));
-  }, [myScores]);
-
-  const orgOverall = useMemo(() => {
-    if (!myScores.length) return 0;
-    return parseFloat((myScores.reduce((s, c) => s + c.orgAvg, 0) / myScores.length).toFixed(2));
-  }, [myScores]);
-
-  const setTab = (tab: string) => {
-    setSearchParams({ tab });
+  const loadDashboard = async () => {
+    if (!profile?.employee_id) return;
+    setDashLoading(true);
+    try {
+      const { data: myResp } = await supabase.from('survey_responses').select('id').eq('employee_id', profile.employee_id);
+      if (myResp?.length) {
+        const ids = myResp.map(r => r.id);
+        const [{ data: myAns }, { data: allAns }] = await Promise.all([
+          supabase.from('survey_answers').select('score, survey_questions(survey_categories(name))').in('response_id', ids).not('score', 'is', null),
+          supabase.from('survey_answers').select('score, survey_questions(survey_categories(name))').not('score', 'is', null),
+        ]);
+        const myCat: Record<string, number[]> = {};
+        const orgCat: Record<string, number[]> = {};
+        (myAns as any[])?.forEach(a => { const c = a.survey_questions?.survey_categories?.name; if (c && a.score) { (myCat[c] ??= []).push(a.score); } });
+        (allAns as any[])?.forEach(a => { const c = a.survey_questions?.survey_categories?.name; if (c && a.score) { (orgCat[c] ??= []).push(a.score); } });
+        setMyScores(Object.keys(myCat).map(c => ({
+          category: c,
+          myScore: +(myCat[c].reduce((a, b) => a + b, 0) / myCat[c].length).toFixed(2),
+          orgAvg: orgCat[c] ? +(orgCat[c].reduce((a, b) => a + b, 0) / orgCat[c].length).toFixed(2) : 0,
+        })));
+        setTotalReviews(myResp.length);
+      }
+    } catch (err) { console.error(err); }
+    finally { setDashLoading(false); }
   };
 
-  const handleLogout = async () => { await logout(); navigate('/'); };
+  // Team pulse
+  useEffect(() => {
+    if (activeTab === 'pulse') loadTeamPulse();
+  }, [activeTab]);
+
+  const loadTeamPulse = async () => {
+    setTeamLoading(true);
+    try {
+      const { data: responses } = await supabase.from('survey_responses').select('id');
+      const { data: allAns } = await supabase.from('survey_answers').select('score, survey_questions(survey_categories(name))').not('score', 'is', null);
+      const catScores: Record<string, number[]> = {};
+      (allAns as any[])?.forEach(a => { const c = a.survey_questions?.survey_categories?.name; if (c && a.score) { (catScores[c] ??= []).push(a.score); } });
+      const cats = Object.entries(catScores).map(([name, scores]) => ({ name, avg: +(scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) }));
+      const allScores = Object.values(catScores).flat();
+      setTeamData({
+        totalReviews: responses?.length || 0,
+        avgScore: allScores.length ? +(allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(2) : 0,
+        categories: cats,
+      });
+    } catch (err) { console.error(err); }
+    finally { setTeamLoading(false); }
+  };
+
+  const overallScore = useMemo(() => myScores.length ? +(myScores.reduce((s, c) => s + c.myScore, 0) / myScores.length).toFixed(2) : 0, [myScores]);
+  const orgOverall = useMemo(() => myScores.length ? +(myScores.reduce((s, c) => s + c.orgAvg, 0) / myScores.length).toFixed(2) : 0, [myScores]);
+
+  const allLocked = lockedPeople.every(p => completedReviews.has(p.primaryEmployeeId));
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="w-6 h-6 animate-spin" /></div>;
   }
-
-  const getRankIcon = (rank: number) => {
-    if (rank === 0) return <Trophy className="w-5 h-5 text-warning" />;
-    if (rank === 1) return <span className="text-muted-foreground font-bold">🥈</span>;
-    if (rank === 2) return <span className="text-primary font-bold">🥉</span>;
-    return <span className="w-5 h-5 flex items-center justify-center text-xs font-bold text-muted-foreground">{rank + 1}</span>;
-  };
-
-  const stepNumber = step === 'subsidiary' ? 1 : step === 'employee' ? 2 : step === 'questions' ? 3 : 4;
 
   return (
     <div className="min-h-screen bg-background">
       <VGGHeader
         subtitle={profile?.name}
-        onLogout={handleLogout}
+        onLogout={async () => { await logout(); navigate('/'); }}
         maxWidth="max-w-4xl"
         actions={
           <>
             {isAdmin && (
-              <Button variant="outline" size="sm" asChild className="h-8 text-xs gap-1.5 border-primary/30 text-primary">
+              <Button variant="outline" size="sm" asChild className="h-8 text-xs gap-1.5">
                 <Link to="/admin"><Shield className="w-3.5 h-3.5" /> Admin</Link>
               </Button>
             )}
-            <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-muted-foreground px-2">
-              <Shield className="w-3 h-3" />
-              <span>Anonymous</span>
+            <div className="hidden sm:flex items-center gap-1.5 label-mono px-2">
+              <Lock className="w-3 h-3" /> Anonymous
             </div>
           </>
         }
       />
 
-      {/* Tabs */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-4">
-        <Tabs value={activeTab} onValueChange={setTab}>
+        <Tabs value={activeTab} onValueChange={t => setSearchParams({ tab: t })}>
           <TabsList className="grid w-full grid-cols-3 h-11">
-            <TabsTrigger value="survey" className="gap-2 text-xs sm:text-sm">
-              <ClipboardList className="w-3.5 h-3.5" /> Survey
+            <TabsTrigger value="review" className="gap-2 text-xs sm:text-sm font-bold uppercase tracking-wider">
+              <Users className="w-3.5 h-3.5" /> Review
             </TabsTrigger>
-            <TabsTrigger value="dashboard" className="gap-2 text-xs sm:text-sm">
-              <BarChart3 className="w-3.5 h-3.5" /> My Dashboard
+            <TabsTrigger value="growth" className="gap-2 text-xs sm:text-sm font-bold uppercase tracking-wider">
+              <BarChart3 className="w-3.5 h-3.5" /> My Growth
             </TabsTrigger>
-            <TabsTrigger value="rankings" className="gap-2 text-xs sm:text-sm">
-              <Trophy className="w-3.5 h-3.5" /> Rankings
+            <TabsTrigger value="pulse" className="gap-2 text-xs sm:text-sm font-bold uppercase tracking-wider">
+              <ClipboardList className="w-3.5 h-3.5" /> Team Pulse
             </TabsTrigger>
           </TabsList>
 
-          {/* ============ SURVEY TAB ============ */}
-          <TabsContent value="survey" className="mt-4">
-            {/* Step Indicator */}
-            {step !== 'submitted' && (
-              <div className="mb-4">
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  {['Company', 'Person', 'Questions'].map((label, i) => (
-                    <div key={label} className="flex items-center gap-1.5 sm:gap-2 flex-1">
-                      <div className={`w-8 h-8 rounded-xl text-xs font-bold flex items-center justify-center transition-all duration-300 shadow-sm ${
-                        i + 1 < stepNumber ? 'bg-primary text-primary-foreground shadow-primary/20'
-                        : i + 1 === stepNumber ? 'bg-primary text-primary-foreground shadow-primary/20'
-                        : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {i + 1 < stepNumber ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
-                      </div>
-                      <span className={`text-xs hidden sm:block font-medium ${i + 1 <= stepNumber ? 'text-foreground' : 'text-muted-foreground'}`}>
-                        {label}
-                      </span>
-                      {i < 2 && <div className={`flex-1 h-0.5 rounded-full ${i + 1 < stepNumber ? 'bg-primary' : 'bg-border'}`} />}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Progress Bar */}
-            {step === 'questions' && (
-              <div className="mb-4">
-                <div className="flex justify-between text-[11px] text-muted-foreground mb-2 font-medium">
-                  <span>Section {currentCategoryIndex + 1} of {categories.length} — {currentCategory?.name}</span>
-                  <span className="text-primary font-bold">{Math.round(progress)}%</span>
-                </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <motion.div className="h-full bg-primary rounded-full" initial={{ width: 0 }} animate={{ width: `${progress}%` }} transition={{ duration: 0.4, ease: 'easeOut' }} />
-                </div>
-              </div>
-            )}
-
+          {/* ═══ REVIEW TAB ═══ */}
+          <TabsContent value="review" className="mt-4">
             <AnimatePresence mode="wait">
-              {/* Step 1: Subsidiary */}
-              {step === 'subsidiary' && (
-                <motion.div key="subsidiary" {...pageTransition}>
-                  <div className="glass-panel p-6 sm:p-8">
-                    <div className="mb-6">
-                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                        <Building2 className="w-6 h-6 text-primary" />
-                      </div>
-                      <h2 className="text-xl font-bold mb-1">Select Company</h2>
-                      <p className="text-muted-foreground text-sm">Choose the subsidiary of the person you would like to review.</p>
-                    </div>
-                    <div className="grid gap-2.5">
-                      {subsidiaries.map(sub => (
-                        <button
-                          key={sub.id}
-                          onClick={() => handleSelectSubsidiary(sub)}
-                          className="flex items-center justify-between p-4 rounded-2xl border-2 border-border bg-background hover:bg-muted/50 hover:border-primary/30 hover:shadow-md transition-all duration-200 text-left group"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="font-semibold text-sm">{sub.name}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                              {subsidiaryCounts[sub.id] || 0} people
-                            </Badge>
-                            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
 
-              {/* Step 2: Employee with department badges */}
-              {step === 'employee' && (
-                <motion.div key="employee" {...pageTransition}>
-                  <div className="glass-panel p-6 sm:p-8">
-                    <button onClick={() => setStep('subsidiary')} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-5 transition-colors font-medium">
-                      <ChevronLeft className="w-4 h-4" /> Back
-                    </button>
-                    <div className="mb-4">
-                      <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center mb-4">
-                        <User className="w-6 h-6 text-accent" />
-                      </div>
-                      <h2 className="text-xl font-bold mb-1">Select Person to Review</h2>
-                      <p className="text-muted-foreground text-sm">{selectedSubsidiary?.name}</p>
-                    </div>
-
-                    {/* Department badges */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {Object.entries(departmentCounts).map(([dept, count]) => (
-                        <Badge key={dept} variant="outline" className="text-[10px] gap-1">
-                          {dept} <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-bold">{count}</span>
-                        </Badge>
-                      ))}
-                    </div>
-
-                    {/* Search */}
+              {/* POOL PHASE */}
+              {phase === 'pool' && (
+                <motion.div key="pool" {...pageT}>
+                  <div className="border-2 border-foreground/10 p-5 sm:p-6 mb-4">
+                    <div className="label-mono mb-2">// select_peers</div>
+                    <h2 className="text-xl font-bold mb-1">Pick Your People</h2>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Choose teammates you've worked with closely enough to give honest, helpful feedback.
+                      This isn't about scoring — it's about helping each other grow.
+                    </p>
                     <div className="relative mb-4">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search by name, email, or department..."
-                        value={employeeSearch}
-                        onChange={e => setEmployeeSearch(e.target.value)}
-                        className="pl-10 h-10"
-                      />
-                      {employeeSearch && (
-                        <button onClick={() => setEmployeeSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <X className="w-4 h-4 text-muted-foreground" />
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="max-h-[55vh] overflow-y-auto scrollbar-thin pr-1 space-y-4">
-                      {employeesByDepartment.map(([dept, emps]) => (
-                        <div key={dept}>
-                          <div className="flex items-center gap-2 mb-2 sticky top-0 bg-card/95 backdrop-blur-sm py-1 z-10">
-                            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{dept}</h3>
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{emps.length}</Badge>
-                          </div>
-                          <div className="grid gap-1.5">
-                            {emps.map(emp => {
-                              const isCompleted = completedEmployees.has(emp.id);
-                              return (
-                                <button
-                                  key={emp.id}
-                                  onClick={() => !isCompleted && handleSelectEmployee(emp)}
-                                  disabled={isCompleted}
-                                  className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-200 text-left group ${
-                                    isCompleted
-                                      ? 'border-primary/15 bg-primary/[0.03] cursor-not-allowed opacity-60'
-                                      : 'border-border bg-background hover:bg-muted/50 hover:border-primary/30 hover:shadow-sm'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-[10px] font-bold ${
-                                      isCompleted ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-                                    }`}>
-                                      {emp.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                    </div>
-                                    <div>
-                                      <span className={`font-medium text-sm block ${isCompleted ? 'text-muted-foreground line-through' : ''}`}>{emp.name}</span>
-                                      {emp.role && <span className="text-xs text-muted-foreground">{emp.role}</span>}
-                                    </div>
-                                  </div>
-                                  {isCompleted ? (
-                                    <div className="flex items-center gap-1.5 text-primary">
-                                      <span className="text-[10px] font-semibold">Reviewed</span>
-                                      <CheckCircle2 className="w-3.5 h-3.5" />
-                                    </div>
-                                  ) : (
-                                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                      {filteredEmployees.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground text-sm">
-                          No employees match your search.
-                        </div>
+                      <Input placeholder="Search by name or email..." value={poolSearch} onChange={e => setPoolSearch(e.target.value)} className="pl-10 h-10 border-2" />
+                      {poolSearch && (
+                        <button onClick={() => setPoolSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="w-4 h-4 text-muted-foreground" /></button>
                       )}
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-24">
+                    {filteredPool.map(person => {
+                      const selected = selectedKeys.has(person.key);
+                      const reviewed = completedReviews.has(person.primaryEmployeeId);
+                      return (
+                        <button
+                          key={person.key}
+                          onClick={() => !reviewed && toggleSelect(person.key)}
+                          disabled={reviewed}
+                          className={`relative p-4 border-2 text-left transition-all duration-150 group ${
+                            reviewed
+                              ? 'border-foreground/5 bg-muted/50 opacity-50 cursor-not-allowed'
+                              : selected
+                              ? 'border-accent bg-accent/5 shadow-[3px_3px_0px_0px] shadow-accent -translate-x-0.5 -translate-y-0.5'
+                              : 'border-foreground/10 bg-card hover:border-foreground/30'
+                          }`}
+                        >
+                          <div className={`w-10 h-10 flex items-center justify-center font-bold text-sm mb-2 ${
+                            selected ? 'bg-accent text-accent-foreground' : reviewed ? 'bg-muted text-muted-foreground' : 'bg-foreground text-background'
+                          }`}>
+                            {person.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          </div>
+                          <div className="text-sm font-bold truncate">{person.name}</div>
+                          {person.email && <div className="mono text-[9px] text-muted-foreground truncate mt-0.5">{person.email}</div>}
+                          {reviewed && <div className="mono text-[9px] text-accent mt-1">✓ REVIEWED</div>}
+                          {selected && !reviewed && (
+                            <div className="absolute top-2 right-2 w-5 h-5 bg-accent flex items-center justify-center">
+                              <CheckCircle2 className="w-3 h-3 text-accent-foreground" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Bottom bar */}
+                  {selectedKeys.size > 0 && (
+                    <motion.div
+                      initial={{ y: 100 }}
+                      animate={{ y: 0 }}
+                      className="fixed bottom-0 left-0 right-0 bg-foreground text-background border-t-2 border-accent py-4 px-6 flex items-center justify-between z-30"
+                    >
+                      <div>
+                        <span className="text-lg font-bold">{selectedKeys.size}</span>
+                        <span className="mono text-xs ml-2 text-background/60 uppercase tracking-wider">people selected</span>
+                      </div>
+                      <button onClick={lockIn} className="bg-accent text-accent-foreground px-6 py-2.5 font-bold uppercase tracking-[0.1em] text-sm flex items-center gap-2 hover:shadow-[3px_3px_0px_0px] hover:shadow-background/30 transition-all">
+                        <Lock className="w-4 h-4" /> Lock In
+                      </button>
+                    </motion.div>
+                  )}
                 </motion.div>
               )}
 
-              {/* Step 3: Questions */}
-              {step === 'questions' && currentCategory && (
-                <motion.div key={`cat-${currentCategoryIndex}`} {...pageTransition}>
-                  <div className="glass-panel p-6 sm:p-8">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                          <ClipboardList className="w-5 h-5 text-primary" />
-                        </div>
-                        <h2 className="text-lg font-bold">{currentCategory.name}</h2>
-                      </div>
-                      <span className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-xl font-bold">
-                        {currentCategoryIndex + 1} / {categories.length}
+              {/* BOX PHASE */}
+              {phase === 'box' && (
+                <motion.div key="box" {...pageT}>
+                  <div className="border-2 border-foreground/10 p-5 sm:p-6 mb-4">
+                    <button onClick={() => { setPhase('pool'); setLockedPeople([]); }} className="label-mono mb-3 flex items-center gap-1 hover:text-foreground">
+                      <ChevronLeft className="w-3 h-3" /> back to pool
+                    </button>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Lock className="w-4 h-4" />
+                      <h2 className="text-xl font-bold">YOUR REVIEW BOX</h2>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {allLocked
+                        ? 'All reviews complete! You can go back to select more people.'
+                        : `${lockedPeople.length} people locked in. Click someone to start their review.`
+                      }
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    {lockedPeople.map((person, idx) => {
+                      const done = completedReviews.has(person.primaryEmployeeId);
+                      return (
+                        <button
+                          key={person.key}
+                          onClick={() => !done && startReview(idx)}
+                          disabled={done}
+                          className={`w-full flex items-center justify-between p-4 border-2 text-left transition-all ${
+                            done
+                              ? 'border-accent/30 bg-accent/5 cursor-not-allowed'
+                              : 'border-foreground/10 bg-card hover:border-foreground/30 hover:shadow-[3px_3px_0px_0px] hover:shadow-foreground/10 hover:-translate-x-0.5 hover:-translate-y-0.5'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 flex items-center justify-center font-bold text-sm ${done ? 'bg-accent/20 text-accent' : 'bg-foreground text-background'}`}>
+                              {person.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                            </div>
+                            <div>
+                              <span className={`font-bold text-sm ${done ? 'line-through text-muted-foreground' : ''}`}>{person.name}</span>
+                              {person.email && <span className="mono text-[9px] text-muted-foreground block">{person.email}</span>}
+                            </div>
+                          </div>
+                          {done ? (
+                            <span className="mono text-[10px] text-accent font-bold flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> DONE
+                            </span>
+                          ) : (
+                            <span className="mono text-[10px] text-muted-foreground group-hover:text-foreground">REVIEW →</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {allLocked && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="border-2 border-accent p-8 mt-6 text-center">
+                      <div className="text-3xl mb-2">✓</div>
+                      <h3 className="text-lg font-bold mb-1">ALL REVIEWS COMPLETE</h3>
+                      <p className="text-sm text-muted-foreground mb-4">Thank you for your honest feedback. You're helping the team grow.</p>
+                      <button onClick={() => { setPhase('pool'); setLockedPeople([]); setSelectedKeys(new Set()); }} className="mono text-xs text-accent hover:underline">
+                        ← Select more people to review
+                      </button>
+                    </motion.div>
+                  )}
+                </motion.div>
+              )}
+
+              {/* QUESTIONS PHASE */}
+              {phase === 'questions' && currentCat && (
+                <motion.div key={`q-${currentCatIdx}`} {...pageT}>
+                  <div className="border-2 border-foreground/10 p-5 sm:p-6">
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="label-mono">// reviewing</div>
+                      <span className="mono text-xs bg-foreground text-background px-2 py-1 font-bold">
+                        {currentCatIdx + 1}/{categories.length}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-6 ml-[52px]">
-                      Reviewing: <span className="text-foreground font-semibold">{selectedEmployee?.name}</span>
-                      {selectedEmployee?.role && <span className="text-muted-foreground"> — {selectedEmployee.role}</span>}
+                    <h2 className="text-lg font-bold mb-0.5">{currentCat.name}</h2>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      For: <span className="font-bold text-foreground">{lockedPeople[currentPersonIdx]?.name}</span>
                     </p>
 
-                    {/* Scale Legend */}
-                    {currentCategory.sort_order < 8 && (
-                      <div className="flex flex-wrap gap-x-5 gap-y-2 mb-8 p-4 rounded-2xl bg-muted/40 border border-border/60 text-xs text-muted-foreground">
+                    {/* Progress */}
+                    <div className="flex justify-between text-[10px] mono text-muted-foreground mb-2">
+                      <span>Progress</span>
+                      <span className="text-accent font-bold">{Math.round(progress)}%</span>
+                    </div>
+                    <div className="h-1 bg-foreground/10 mb-6">
+                      <motion.div className="h-full bg-accent" animate={{ width: `${progress}%` }} transition={{ duration: 0.3 }} />
+                    </div>
+
+                    {/* Scale legend */}
+                    {currentCat.sort_order < 8 && (
+                      <div className="flex flex-wrap gap-3 mb-6 p-3 border border-foreground/10 mono text-[10px] text-muted-foreground">
                         {SCALE_OPTIONS.map(s => (
-                          <span key={s.value} className="flex items-center gap-2">
-                            <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-center leading-6 font-bold text-xs">{s.value}</span>
-                            <span className="font-medium">{s.label}</span>
+                          <span key={s.value} className="flex items-center gap-1.5">
+                            <span className="w-5 h-5 bg-foreground/10 text-foreground flex items-center justify-center font-bold">{s.value}</span>
+                            {s.label}
                           </span>
                         ))}
                       </div>
                     )}
 
-                    <div className="space-y-8">
+                    {/* Questions */}
+                    <div className="space-y-6">
                       {currentQuestions.map((q, qi) => (
-                        <motion.div
-                          key={q.id}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: qi * 0.05 }}
-                          className="p-4 rounded-2xl bg-muted/20 border border-border/40"
-                        >
-                          <p className="text-sm leading-relaxed mb-4 font-medium">
-                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-bold mr-2">{qi + 1}</span>
+                        <motion.div key={q.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: qi * 0.03 }} className="p-4 border border-foreground/10">
+                          <p className="text-sm font-medium mb-3">
+                            <span className="mono text-[10px] text-accent mr-2">{String(qi + 1).padStart(2, '0')}</span>
                             {q.question_text}
                           </p>
                           {q.question_type === 'scored' ? (
-                            <div className="flex gap-2">
+                            <div className="flex gap-1.5">
                               {SCALE_OPTIONS.map(s => (
                                 <button
                                   key={s.value}
                                   onClick={() => setAnswers(prev => ({ ...prev, [q.id]: s.value }))}
-                                  className={`flex-1 py-3 rounded-xl border-2 text-center transition-all duration-200 ${
+                                  className={`flex-1 py-3 border-2 text-center transition-all duration-150 ${
                                     answers[q.id] === s.value
-                                      ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 -translate-y-0.5'
-                                      : 'border-border bg-background text-muted-foreground hover:bg-muted/50 hover:border-primary/30'
+                                      ? 'bg-foreground text-background border-foreground shadow-[2px_2px_0px_0px] shadow-accent -translate-x-0.5 -translate-y-0.5'
+                                      : 'border-foreground/10 hover:border-foreground/30'
                                   }`}
                                 >
                                   <div className="text-sm font-bold">{s.value}</div>
-                                  <div className="text-[10px] mt-0.5 hidden sm:block opacity-80 font-medium">{s.label}</div>
+                                  <div className="mono text-[8px] mt-0.5 hidden sm:block opacity-70">{s.label}</div>
                                 </button>
                               ))}
                             </div>
                           ) : (
                             <Textarea
-                              placeholder="Share your thoughts..."
+                              placeholder="Be honest. Be helpful. Be specific."
                               value={(answers[q.id] as string) || ''}
                               onChange={e => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
-                              className="bg-background border-2 border-border rounded-xl min-h-[100px] text-sm resize-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all duration-200"
+                              className="border-2 border-foreground/10 min-h-[100px] text-sm resize-none focus:border-accent focus:ring-1 focus:ring-accent/20"
                             />
                           )}
                         </motion.div>
                       ))}
                     </div>
 
-                    <div className="flex justify-between mt-8 pt-6 border-t border-border/60">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          if (currentCategoryIndex === 0) setStep('employee');
-                          else setCurrentCategoryIndex(prev => prev - 1);
-                        }}
-                        className="gap-1.5"
-                      >
-                        <ChevronLeft className="w-4 h-4" /> Previous
+                    {/* Nav */}
+                    <div className="flex justify-between mt-8 pt-5 border-t-2 border-foreground/10">
+                      <Button variant="outline" onClick={() => { if (currentCatIdx === 0) setPhase('box'); else setCurrentCatIdx(p => p - 1); }} className="gap-1.5 border-2 font-bold uppercase text-xs tracking-wider">
+                        <ChevronLeft className="w-4 h-4" /> Back
                       </Button>
-                      {currentCategoryIndex < categories.length - 1 ? (
-                        <Button
-                          onClick={() => setCurrentCategoryIndex(prev => prev + 1)}
-                          disabled={currentCategory.sort_order < 8 && !isCurrentCategoryComplete()}
-                          className="gap-1.5"
-                        >
-                          Next Section <ChevronRight className="w-4 h-4" />
+                      {currentCatIdx < categories.length - 1 ? (
+                        <Button onClick={() => setCurrentCatIdx(p => p + 1)} disabled={!isCatComplete()} className="gap-1.5 font-bold uppercase text-xs tracking-wider">
+                          Next <ChevronRight className="w-4 h-4" />
                         </Button>
                       ) : (
-                        <Button
-                          onClick={handleSubmit}
-                          disabled={submitting || answeredScoredQuestions < totalScoredQuestions}
-                          className="gap-1.5"
-                        >
+                        <Button onClick={handleSubmit} disabled={submitting || answeredScored < totalScored} className="gap-1.5 font-bold uppercase text-xs tracking-wider">
                           {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                          Submit Response
+                          Submit
                         </Button>
                       )}
                     </div>
@@ -683,219 +501,131 @@ export default function EmployeeHub() {
                 </motion.div>
               )}
 
-              {/* Step 4: Submitted */}
-              {step === 'submitted' && (
-                <motion.div key="submitted" {...pageTransition}>
-                  <div className="glass-panel p-10 sm:p-14 text-center max-w-md mx-auto">
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: 'spring', stiffness: 200, delay: 0.15 }}
-                      className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto mb-6"
-                    >
-                      <CheckCircle2 className="w-10 h-10 text-primary" />
-                    </motion.div>
-                    <h2 className="text-2xl font-bold mb-3">Thank You!</h2>
-                    <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
-                      Your anonymous feedback has been recorded successfully.
+              {/* PERSON DONE */}
+              {phase === 'person-done' && (
+                <motion.div key="done" {...pageT}>
+                  <div className="border-2 border-accent p-10 text-center max-w-md mx-auto">
+                    <div className="w-16 h-16 bg-accent/10 border-2 border-accent flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle2 className="w-8 h-8 text-accent" />
+                    </div>
+                    <div className="label-mono mb-2">// recorded</div>
+                    <h2 className="text-xl font-bold mb-2">FEEDBACK SAVED</h2>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Your anonymous review of {lockedPeople[currentPersonIdx]?.name} has been recorded.
                     </p>
-                    <Button
-                      size="lg"
-                      onClick={() => {
-                        setStep('subsidiary');
-                        setSelectedSubsidiary(null);
-                        setSelectedEmployee(null);
-                        setAnswers({});
-                        setCurrentCategoryIndex(0);
-                      }}
-                      className="gap-2"
+                    <button
+                      onClick={() => { setPhase('box'); setAnswers({}); setCurrentCatIdx(0); }}
+                      className="border-2 border-foreground bg-foreground text-background px-6 py-3 font-bold uppercase tracking-[0.1em] text-sm hover:shadow-[3px_3px_0px_0px] hover:shadow-accent transition-all"
                     >
-                      Review Another Person <ChevronRight className="w-4 h-4" />
-                    </Button>
+                      Continue →
+                    </button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </TabsContent>
 
-          {/* ============ DASHBOARD TAB ============ */}
-          <TabsContent value="dashboard" className="mt-4">
-            <motion.div {...pageTransition}>
-              {dashboardLoading ? (
-                <div className="flex items-center justify-center py-20">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          {/* ═══ MY GROWTH TAB ═══ */}
+          <TabsContent value="growth" className="mt-4">
+            <motion.div {...pageT}>
+              {dashLoading ? (
+                <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin" /></div>
+              ) : myScores.length === 0 ? (
+                <div className="border-2 border-foreground/10 p-10 text-center">
+                  <div className="label-mono mb-2">// no_data</div>
+                  <h3 className="text-lg font-bold mb-2">No Reviews Yet</h3>
+                  <p className="text-sm text-muted-foreground">Once your peers review you, your growth data will appear here.</p>
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {/* Stats row */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-panel p-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Star className="w-4 h-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Your Overall Score</p>
-                          <p className="text-2xl font-bold">{overallScore}<span className="text-sm font-normal text-muted-foreground">/5</span></p>
-                        </div>
-                      </div>
-                    </motion.div>
-                    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-panel p-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center">
-                          <BarChart3 className="w-4 h-4 text-accent" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Organisation Average</p>
-                          <p className="text-2xl font-bold">{orgOverall}<span className="text-sm font-normal text-muted-foreground">/5</span></p>
-                        </div>
-                      </div>
-                    </motion.div>
-                    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-panel p-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Users className="w-4 h-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Reviews Received</p>
-                          <p className="text-2xl font-bold">{totalReviews}</p>
-                        </div>
-                      </div>
-                    </motion.div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="border-2 border-foreground/10 p-5">
+                      <div className="label-mono mb-1">Your Score</div>
+                      <div className="text-3xl font-bold">{overallScore}<span className="text-sm text-muted-foreground">/5</span></div>
+                    </div>
+                    <div className="border-2 border-foreground/10 p-5">
+                      <div className="label-mono mb-1">Team Average</div>
+                      <div className="text-3xl font-bold">{orgOverall}<span className="text-sm text-muted-foreground">/5</span></div>
+                    </div>
+                    <div className="border-2 border-foreground/10 p-5">
+                      <div className="label-mono mb-1">Reviews Received</div>
+                      <div className="text-3xl font-bold">{totalReviews}</div>
+                    </div>
                   </div>
 
-                  {myScores.length > 0 ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-panel p-6">
-                        <h2 className="text-sm font-semibold mb-4">Competency Overview</h2>
-                        <ResponsiveContainer width="100%" height={300}>
+                  {myScores.length > 0 && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="border-2 border-foreground/10 p-5">
+                        <div className="label-mono mb-3">Radar</div>
+                        <ResponsiveContainer width="100%" height={280}>
                           <RadarChart data={myScores}>
-                            <PolarGrid stroke="hsl(var(--border))" />
+                            <PolarGrid stroke="hsl(var(--foreground) / 0.1)" />
                             <PolarAngleAxis dataKey="category" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                            <Radar name="You" dataKey="myScore" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} strokeWidth={2} />
-                            <Radar name="Org Avg" dataKey="orgAvg" stroke="hsl(var(--muted-foreground))" fill="hsl(var(--muted-foreground))" fillOpacity={0.05} strokeWidth={1} strokeDasharray="4 4" />
+                            <Radar name="You" dataKey="myScore" fill="hsl(var(--accent))" fillOpacity={0.3} stroke="hsl(var(--accent))" strokeWidth={2} />
+                            <Radar name="Team" dataKey="orgAvg" fill="hsl(var(--foreground))" fillOpacity={0.1} stroke="hsl(var(--foreground))" strokeWidth={1} strokeDasharray="4 4" />
                           </RadarChart>
                         </ResponsiveContainer>
-                        <div className="flex gap-4 justify-center mt-2 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-primary rounded" /> You</span>
-                          <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-muted-foreground rounded" /> Org Average</span>
-                        </div>
-                      </motion.div>
-
-                      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass-panel p-6">
-                        <h2 className="text-sm font-semibold mb-4">Score Comparison by Category</h2>
-                        <ResponsiveContainer width="100%" height={300}>
+                      </div>
+                      <div className="border-2 border-foreground/10 p-5">
+                        <div className="label-mono mb-3">Breakdown</div>
+                        <ResponsiveContainer width="100%" height={280}>
                           <BarChart data={myScores} layout="vertical">
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                            <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                            <YAxis dataKey="category" type="category" width={100} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                            <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
-                            <Bar dataKey="myScore" name="You" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                            <Bar dataKey="orgAvg" name="Org Avg" fill="hsl(var(--muted))" radius={[0, 4, 4, 0]} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--foreground) / 0.08)" />
+                            <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 10 }} />
+                            <YAxis type="category" dataKey="category" width={100} tick={{ fontSize: 10 }} />
+                            <Tooltip />
+                            <Bar dataKey="myScore" fill="hsl(var(--accent))" name="You" />
+                            <Bar dataKey="orgAvg" fill="hsl(var(--foreground) / 0.2)" name="Team" />
                           </BarChart>
                         </ResponsiveContainer>
-                      </motion.div>
+                      </div>
                     </div>
-                  ) : (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel p-12 text-center">
-                      <BarChart3 className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
-                      <h2 className="text-lg font-semibold mb-2">No Results Yet</h2>
-                      <p className="text-muted-foreground text-sm">Your colleagues haven't submitted reviews for you yet. Check back later.</p>
-                    </motion.div>
                   )}
                 </div>
               )}
             </motion.div>
           </TabsContent>
 
-          {/* ============ RANKINGS TAB ============ */}
-          <TabsContent value="rankings" className="mt-4">
-            <motion.div {...pageTransition}>
-              {rankingsLoading ? (
-                <div className="flex items-center justify-center py-20">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                </div>
+          {/* ═══ TEAM PULSE TAB ═══ */}
+          <TabsContent value="pulse" className="mt-4">
+            <motion.div {...pageT}>
+              {teamLoading ? (
+                <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin" /></div>
               ) : (
-                <div>
-                  <div className="text-center mb-6">
-                    <h1 className="text-xl font-bold mb-1">Performance Rankings</h1>
-                    <p className="text-muted-foreground text-sm">Top performers based on peer review scores.</p>
+                <div className="space-y-4">
+                  <div className="border-2 border-foreground/10 p-5 sm:p-6">
+                    <div className="label-mono mb-2">// team_pulse</div>
+                    <h2 className="text-xl font-bold mb-1">Aggregate Team Insights</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Anonymous, aggregate data. No individual names or rankings — just how we're doing as a team.
+                    </p>
                   </div>
 
-                  {/* Top 3 podium */}
-                  {rankings.length >= 3 && (
-                    <div className="grid grid-cols-3 gap-3 mb-6">
-                      {[1, 0, 2].map(idx => {
-                        const person = rankings[idx];
-                        const isFirst = idx === 0;
-                        return (
-                          <motion.div
-                            key={person.employee_id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 + idx * 0.1 }}
-                            className={`glass-panel p-4 text-center ${isFirst ? 'sm:-mt-4 border-primary/30 bg-primary/5' : ''}`}
-                          >
-                            <div className="mb-2">{getRankIcon(idx)}</div>
-                            <div className={`w-10 h-10 rounded-full mx-auto mb-2 flex items-center justify-center ${
-                              isFirst ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                            }`}>
-                              <span className="font-bold text-xs">{person.name.split(' ').map(n => n[0]).join('').slice(0, 2)}</span>
-                            </div>
-                            <p className="text-sm font-semibold truncate">{person.name}</p>
-                            <p className="text-[10px] text-muted-foreground mb-1">{person.subsidiary}</p>
-                            <div className="flex items-center justify-center gap-1">
-                              <Star className="w-3 h-3 text-primary" />
-                              <span className="text-sm font-bold text-primary">{person.avgScore}</span>
-                              <span className="text-[10px] text-muted-foreground">/5</span>
-                            </div>
-                          </motion.div>
-                        );
-                      })}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="border-2 border-foreground/10 p-5">
+                      <div className="label-mono mb-1">Team Average</div>
+                      <div className="text-3xl font-bold">{teamData.avgScore}<span className="text-sm text-muted-foreground">/5</span></div>
+                    </div>
+                    <div className="border-2 border-foreground/10 p-5">
+                      <div className="label-mono mb-1">Total Reviews</div>
+                      <div className="text-3xl font-bold">{teamData.totalReviews}</div>
+                    </div>
+                  </div>
+
+                  {teamData.categories.length > 0 && (
+                    <div className="border-2 border-foreground/10 p-5">
+                      <div className="label-mono mb-3">Category Averages</div>
+                      <ResponsiveContainer width="100%" height={Math.max(200, teamData.categories.length * 50)}>
+                        <BarChart data={teamData.categories} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--foreground) / 0.08)" />
+                          <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 10 }} />
+                          <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 10 }} />
+                          <Tooltip />
+                          <Bar dataKey="avg" fill="hsl(var(--accent))" name="Average" />
+                        </BarChart>
+                      </ResponsiveContainer>
                     </div>
                   )}
-
-                  {/* Full list */}
-                  <div className="glass-panel divide-y divide-border">
-                    {rankings.map((person, i) => {
-                      const isMe = person.employee_id === profile?.employee_id;
-                      return (
-                        <motion.div
-                          key={person.employee_id}
-                          initial={{ opacity: 0, x: -8 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.03 * Math.min(i, 20) }}
-                          className={`flex items-center gap-4 px-4 py-3 ${isMe ? 'bg-primary/5' : ''}`}
-                        >
-                          <div className="w-7 flex-shrink-0 text-center">{getRankIcon(i)}</div>
-                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                            <span className="text-[10px] font-semibold text-muted-foreground">{person.name.split(' ').map(n => n[0]).join('').slice(0, 2)}</span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {person.name}
-                              {isMe && <span className="ml-1.5 text-xs text-primary font-normal">(You)</span>}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">{person.subsidiary}</p>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <div className="flex items-center gap-1">
-                              <Star className="w-3 h-3 text-primary" />
-                              <span className="text-sm font-bold">{person.avgScore}</span>
-                            </div>
-                            <p className="text-[10px] text-muted-foreground">{person.totalReviews} reviews</p>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                    {rankings.length === 0 && (
-                      <div className="p-12 text-center">
-                        <Trophy className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
-                        <h2 className="text-lg font-semibold mb-2">No Rankings Yet</h2>
-                        <p className="text-muted-foreground text-sm">Rankings will appear once reviews are submitted.</p>
-                      </div>
-                    )}
-                  </div>
                 </div>
               )}
             </motion.div>

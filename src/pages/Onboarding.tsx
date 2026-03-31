@@ -1,288 +1,171 @@
-import { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowRight, ArrowLeft, Search } from 'lucide-react';
 import TypewriterText from '@/components/TypewriterText';
-import { Button } from '@/components/ui/button';
-import {
-  Search, Users, BarChart3, ChevronRight, ChevronLeft,
-  Shield, ArrowRight, Award, CheckCircle2, Lock, Eye, Code2,
-} from 'lucide-react';
-
-const TRANSITION_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
-
-const HEADLINE_TYPE = {
-  speed: 108,
-  deleteSpeed: 52,
-  pauseDuration: 4200,
-} as const;
-
-const SLIDE_ENTER = { duration: 0.65, ease: TRANSITION_EASE };
-const BADGE_REVEAL = { delay: 0.12, duration: 0.55, ease: TRANSITION_EASE };
-const SUBTITLE_REVEAL = { delay: 0.95, duration: 0.75, ease: TRANSITION_EASE };
-const CARDS_REVEAL = { delay: 1.15, duration: 0.65, ease: TRANSITION_EASE };
 
 export default function Onboarding() {
   const [slide, setSlide] = useState(0);
   const navigate = useNavigate();
 
-  const next = useCallback(() => setSlide((s) => Math.min(s + 1, 2)), []);
-  const prev = useCallback(() => setSlide((s) => Math.max(s - 1, 0)), []);
-
-  const handleAutoAdvance = useCallback(() => {
-    setSlide((s) => (s < 2 ? s + 1 : s));
-  }, []);
+  const next = () => setSlide(s => Math.min(s + 1, 2));
+  const prev = () => setSlide(s => Math.max(s - 1, 0));
 
   return (
-    <div className="min-h-screen bg-background flex flex-col overflow-hidden relative">
-      {/* Background decoration */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full bg-primary/[0.03] blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full bg-muted/[0.5] blur-3xl" />
-      </div>
-
-      {/* Top bar */}
-      <header className="relative z-10 flex items-center justify-between px-6 sm:px-10 py-5">
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header */}
+      <header className="flex items-center justify-between px-6 sm:px-10 py-4 border-b-2 border-foreground/10">
         <div className="flex items-center gap-3">
-          <span className="text-xl font-extrabold tracking-tight text-foreground">ProDG</span>
-          <div className="hidden sm:block h-5 w-px bg-border" />
-          <span className="hidden sm:block text-xs font-semibold text-muted-foreground tracking-widest uppercase">
-            360° Review
+          <span className="text-xl font-bold tracking-tight">ProDG</span>
+          <span className="hidden sm:block label-mono border-l-2 border-foreground/10 pl-3">
+            360° Peer Review
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate('/login')} className="text-xs">
-            Sign In
-          </Button>
-        </div>
+        <button
+          onClick={() => navigate('/login')}
+          className="border-2 border-foreground px-4 py-2 text-[10px] font-bold uppercase tracking-[0.15em] hover:bg-foreground hover:text-background transition-colors"
+        >
+          Sign In
+        </button>
       </header>
 
-      {/* Progress bar */}
-      <div className="relative z-10 px-6 sm:px-10">
-        <div className="max-w-2xl mx-auto flex gap-2">
-          {[0, 1, 2].map((i) => (
-            <motion.div
+      {/* Progress */}
+      <div className="px-6 sm:px-10 py-3">
+        <div className="max-w-3xl mx-auto flex gap-1">
+          {[0, 1, 2].map(i => (
+            <div
               key={i}
-              className="h-1 flex-1 rounded-full overflow-hidden bg-muted"
-            >
-              <motion.div
-                initial={false}
-                animate={{ width: i <= slide ? '100%' : '0%' }}
-                transition={{ duration: 1.05, ease: TRANSITION_EASE }}
-                className="h-full bg-primary rounded-full"
-              />
-            </motion.div>
+              className={`h-[3px] flex-1 transition-colors duration-300 ${
+                i <= slide ? 'bg-foreground' : 'bg-foreground/10'
+              }`}
+            />
           ))}
         </div>
       </div>
 
       {/* Slide content */}
-      <div className="relative z-10 flex-1 flex items-center justify-center px-6 pb-24 pt-8">
+      <div className="flex-1 flex items-center justify-center px-6 pb-28 pt-8">
         <AnimatePresence mode="wait">
-          {slide === 0 && <SlideWelcome key="welcome" onComplete={handleAutoAdvance} />}
-          {slide === 1 && <SlideHowItWorks key="how" onComplete={handleAutoAdvance} />}
-          {slide === 2 && <SlideGetStarted key="start" navigate={navigate} />}
+          {slide === 0 && <SlideWelcome key="w" />}
+          {slide === 1 && <SlideHow key="h" />}
+          {slide === 2 && <SlideStart key="s" navigate={navigate} />}
         </AnimatePresence>
       </div>
 
       {/* Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 py-6 flex items-center justify-center gap-4 bg-background">
-        <Button
-          variant="outline"
-          size="sm"
+      <div className="fixed bottom-0 left-0 right-0 bg-background border-t-2 border-foreground/10 py-5 flex items-center justify-center gap-6">
+        <button
           onClick={prev}
           disabled={slide === 0}
-          className="rounded-full h-10 w-10 p-0"
+          className="w-10 h-10 border-2 border-foreground/20 flex items-center justify-center disabled:opacity-20 hover:bg-foreground hover:text-background transition-colors disabled:hover:bg-transparent disabled:hover:text-foreground"
         >
-          <ChevronLeft className="w-4 h-4" />
-        </Button>
+          <ArrowLeft className="w-4 h-4" />
+        </button>
 
-        <div className="flex gap-2.5 items-center">
-          {['Welcome', 'How it works', 'Get started'].map((label, i) => (
+        <div className="flex gap-2 items-center">
+          {[0, 1, 2].map(i => (
             <button
               key={i}
               onClick={() => setSlide(i)}
-              className="flex items-center gap-1.5 group"
-            >
-              <div className={`h-2.5 rounded-full transition-all duration-300 ${
-                i === slide
-                  ? 'w-8 bg-primary'
-                  : i < slide
-                  ? 'w-2.5 bg-primary/40'
-                  : 'w-2.5 bg-muted-foreground/20 group-hover:bg-muted-foreground/40'
-              }`} />
-            </button>
+              className={`h-2 transition-all duration-300 ${
+                i === slide ? 'w-8 bg-foreground' : i < slide ? 'w-2 bg-foreground/40' : 'w-2 bg-foreground/15'
+              }`}
+            />
           ))}
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
+        <button
           onClick={slide === 2 ? () => navigate('/login') : next}
-          className="rounded-full h-10 w-10 p-0"
+          className="w-10 h-10 border-2 border-foreground flex items-center justify-center hover:bg-foreground hover:text-background transition-colors"
         >
-          <ChevronRight className="w-4 h-4" />
-        </Button>
+          <ArrowRight className="w-4 h-4" />
+        </button>
       </div>
     </div>
   );
 }
 
 /* ─── Slide 1: Welcome ─── */
-function SlideWelcome({ onComplete }: { onComplete: () => void }) {
+function SlideWelcome() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12 }}
-      transition={SLIDE_ENTER}
-      className="max-w-3xl w-full text-center"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ duration: 0.2 }}
+      className="max-w-3xl w-full"
     >
-      {/* Badge */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={BADGE_REVEAL}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/8 border border-primary/15 text-primary text-xs font-semibold mb-8"
-      >
-        <Code2 className="w-3.5 h-3.5" />
-        ProDG 360° Peer Review
-      </motion.div>
+      <div className="label-mono mb-6">// peer_review</div>
 
-      {/* Main heading */}
-      <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-foreground leading-[1.1] mb-6 min-h-[2.6em] sm:min-h-[2.4em]">
-        <span className="block mb-2">Building</span>
+      <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] mb-2">
+        NOT AWARDS.
+      </h1>
+      <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] mb-2 text-muted-foreground">
+        NOT RANKINGS.
+      </h1>
+      <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] mb-8">
         <TypewriterText
-          texts={['Together.', 'Better.', 'Stronger.']}
-          className="gradient-text"
-          speed={HEADLINE_TYPE.speed}
-          deleteSpeed={HEADLINE_TYPE.deleteSpeed}
-          pauseDuration={HEADLINE_TYPE.pauseDuration}
-          onCycleComplete={onComplete}
+          texts={['GROWTH_', 'HONESTY_', 'EACH OTHER_']}
+          speed={80}
+          deleteSpeed={40}
+          pauseDuration={3000}
+          hideCursor
         />
+        <span className="inline-block w-[3px] h-[0.75em] bg-accent ml-1 animate-pulse" />
       </h1>
 
-      <motion.p
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={SUBTITLE_REVEAL}
-        className="max-w-lg mx-auto mb-10 text-muted-foreground text-base sm:text-lg leading-relaxed"
-      >
-        A peer review platform for dev teams—structured, anonymous feedback to help your community grow and ship better.
-      </motion.p>
+      <p className="text-muted-foreground text-base sm:text-lg max-w-xl leading-relaxed mb-10">
+        ProDG 360° is a peer evaluation tool for teams that build together.
+        Honest, anonymous feedback — so everyone can level up.
+      </p>
 
-      {/* Feature cards */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={CARDS_REVEAL}
-        className="flex flex-wrap gap-3 justify-center"
-      >
-        {[
-          { icon: Lock, label: 'Anonymous & Secure' },
-          { icon: Eye, label: 'Transparent Process' },
-          { icon: BarChart3, label: 'Data-Driven Insights' },
-        ].map(({ icon: Icon, label }, i) => (
-          <motion.div
-            key={label}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: CARDS_REVEAL.delay + 0.08 + i * 0.12, duration: 0.6, ease: TRANSITION_EASE }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-card border border-border/60 shadow-sm text-sm text-muted-foreground"
+      <div className="flex flex-wrap gap-2">
+        {['Anonymous', 'Peer-to-Peer', 'Growth-Focused'].map(tag => (
+          <span
+            key={tag}
+            className="mono text-[10px] uppercase tracking-[0.15em] px-3 py-2 border-2 border-foreground/10 bg-card font-medium"
           >
-            <Icon className="w-4 h-4 text-primary" />
-            {label}
-          </motion.div>
+            {tag}
+          </span>
         ))}
-      </motion.div>
+      </div>
     </motion.div>
   );
 }
 
 /* ─── Slide 2: How It Works ─── */
-const STEPS = [
-  {
-    icon: Search,
-    title: 'Find Your Profile',
-    desc: 'Look up your name to locate your account and set up your credentials securely.',
-    bg: 'bg-primary/5',
-    iconBg: 'bg-primary/15',
-    iconColor: 'text-primary',
-  },
-  {
-    icon: Users,
-    title: 'Review Your Teammates',
-    desc: 'Provide honest, anonymous feedback across key competencies for your peers.',
-    bg: 'bg-muted',
-    iconBg: 'bg-primary/10',
-    iconColor: 'text-primary',
-  },
-  {
-    icon: BarChart3,
-    title: 'View Your Insights',
-    desc: 'Access your personal dashboard, see benchmarks, and track your progress.',
-    bg: 'bg-primary/5',
-    iconBg: 'bg-primary/15',
-    iconColor: 'text-primary',
-  },
-];
+function SlideHow() {
+  const steps = [
+    { num: '01', title: 'PICK', desc: 'Choose the people you\'ve worked with closely enough to give honest feedback.' },
+    { num: '02', title: 'LOCK', desc: 'Lock them into your review box. No second-guessing — commit to your selections.' },
+    { num: '03', title: 'REVIEW', desc: 'Give each person real, anonymous feedback on collaboration, reliability, and growth.' },
+  ];
 
-function SlideHowItWorks({ onComplete }: { onComplete: () => void }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12 }}
-      transition={SLIDE_ENTER}
-      className="max-w-3xl w-full text-center"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ duration: 0.2 }}
+      className="max-w-3xl w-full"
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={BADGE_REVEAL}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/8 border border-primary/15 text-primary text-xs font-semibold mb-8"
-      >
-        <Award className="w-3.5 h-3.5" />
-        Simple 3-Step Process
-      </motion.div>
+      <div className="label-mono mb-6">// how_it_works</div>
 
-      <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-foreground leading-[1.1] mb-4 min-h-[1.35em]">
-        <TypewriterText
-          texts={['How It Works', 'Your Journey Begins', 'Three Simple Steps']}
-          className="text-foreground"
-          speed={HEADLINE_TYPE.speed}
-          deleteSpeed={HEADLINE_TYPE.deleteSpeed}
-          pauseDuration={HEADLINE_TYPE.pauseDuration}
-          onCycleComplete={onComplete}
-        />
+      <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-[1.05] mb-10">
+        PICK → LOCK → REVIEW
       </h1>
 
-      <motion.p
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={SUBTITLE_REVEAL}
-        className="text-muted-foreground text-base sm:text-lg max-w-lg mx-auto mb-10 leading-relaxed"
-      >
-        From secure account setup to actionable insights—a streamlined flow for busy teams.
-      </motion.p>
-
-      {/* Step cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {STEPS.map((step, i) => (
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {steps.map((step, i) => (
           <motion.div
-            key={step.title}
+            key={step.num}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: CARDS_REVEAL.delay + i * 0.12, duration: 0.65, ease: TRANSITION_EASE }}
-            className={`relative p-6 rounded-2xl ${step.bg} border border-border/40 text-left group hover:shadow-lg hover:-translate-y-1 transition-all duration-300`}
+            transition={{ delay: 0.1 + i * 0.1, duration: 0.3 }}
+            className="border-2 border-foreground/10 p-5 hover:border-foreground/30 transition-colors group"
           >
-            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground mb-4">
-              Step {i + 1}
-            </div>
-            <div className={`w-12 h-12 rounded-2xl ${step.iconBg} flex items-center justify-center mb-4`}>
-              <step.icon className={`w-6 h-6 ${step.iconColor}`} />
-            </div>
-            <h3 className="text-base font-bold text-foreground mb-2">{step.title}</h3>
+            <div className="mono text-accent text-xs font-bold mb-3">{step.num}</div>
+            <h3 className="text-lg font-bold mb-2">{step.title}</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">{step.desc}</p>
           </motion.div>
         ))}
@@ -292,76 +175,53 @@ function SlideHowItWorks({ onComplete }: { onComplete: () => void }) {
 }
 
 /* ─── Slide 3: Get Started ─── */
-function SlideGetStarted({ navigate }: { navigate: (path: string) => void }) {
+function SlideStart({ navigate }: { navigate: (path: string) => void }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12 }}
-      transition={SLIDE_ENTER}
-      className="max-w-2xl w-full text-center"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ duration: 0.2 }}
+      className="max-w-2xl w-full"
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={BADGE_REVEAL}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/8 border border-primary/15 text-primary text-xs font-semibold mb-8"
-      >
-        <CheckCircle2 className="w-3.5 h-3.5" />
-        Secure & Confidential
-      </motion.div>
+      <div className="label-mono mb-6">// get_started</div>
 
-      <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-foreground leading-[1.1] mb-4 min-h-[1.35em]">
+      <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-[1.05] mb-4">
         <TypewriterText
-          texts={['Ready to Begin?', 'Let\'s Get Started.', 'Your Voice Matters.']}
-          className="text-foreground"
-          speed={HEADLINE_TYPE.speed}
-          deleteSpeed={HEADLINE_TYPE.deleteSpeed}
-          pauseDuration={HEADLINE_TYPE.pauseDuration}
+          texts={['YOUR VOICE_', 'RAW FEEDBACK_', 'REAL GROWTH_']}
+          speed={80}
+          deleteSpeed={40}
+          pauseDuration={3000}
+          hideCursor
         />
+        <span className="inline-block w-[3px] h-[0.75em] bg-accent ml-1 animate-pulse" />
       </h1>
 
-      <motion.p
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={SUBTITLE_REVEAL}
-        className="text-muted-foreground text-base sm:text-lg leading-relaxed max-w-lg mx-auto mb-10"
-      >
-        Sign in with your credentials or find your account. Your feedback stays anonymous and confidential.
-      </motion.p>
+      <p className="text-muted-foreground text-base sm:text-lg leading-relaxed max-w-lg mb-10">
+        This isn't about looking good. It's about helping each other get better.
+        Sign in and start reviewing your peers — anonymously and honestly.
+      </p>
 
-      {/* CTA buttons */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: CARDS_REVEAL.delay, duration: 0.65, ease: TRANSITION_EASE }}
-        className="flex flex-col sm:flex-row gap-3 justify-center mb-8"
-      >
-        <Button size="lg" onClick={() => navigate('/login')} className="gap-2 px-8">
+      <div className="flex flex-col sm:flex-row gap-3 mb-8">
+        <button
+          onClick={() => navigate('/login')}
+          className="border-2 border-foreground bg-foreground text-background px-8 py-3 font-bold uppercase tracking-[0.1em] text-sm hover:shadow-[4px_4px_0px_0px] hover:shadow-accent hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all flex items-center gap-2 justify-center"
+        >
           Sign In <ArrowRight className="w-4 h-4" />
-        </Button>
-        <Button size="lg" variant="outline" onClick={() => navigate('/find-account')} className="gap-2 px-8">
+        </button>
+        <button
+          onClick={() => navigate('/find-account')}
+          className="border-2 border-foreground/30 px-8 py-3 font-bold uppercase tracking-[0.1em] text-sm hover:border-foreground hover:shadow-[4px_4px_0px_0px] hover:shadow-foreground/20 hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all flex items-center gap-2 justify-center"
+        >
           <Search className="w-4 h-4" /> Find My Account
-        </Button>
-      </motion.div>
+        </button>
+      </div>
 
-      {/* Trust bar */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: CARDS_REVEAL.delay + 0.45, duration: 0.65, ease: TRANSITION_EASE }}
-        className="flex items-center justify-center gap-6 text-xs text-muted-foreground"
-      >
-        <span className="flex items-center gap-1.5">
-          <Lock className="w-3.5 h-3.5" />
-          Team Members Only
-        </span>
-        <span className="w-1 h-1 rounded-full bg-border" />
-        <span className="flex items-center gap-1.5">
-          <Shield className="w-3.5 h-3.5" />
-          Encrypted & Anonymous
-        </span>
-      </motion.div>
+      <div className="flex items-center gap-4 mono text-[10px] text-muted-foreground uppercase tracking-[0.15em]">
+        <span>Team Members Only</span>
+        <span className="w-1 h-1 bg-foreground/20" />
+        <span>Anonymous & Encrypted</span>
+      </div>
     </motion.div>
   );
 }
