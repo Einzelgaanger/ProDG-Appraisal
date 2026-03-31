@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Lock, Mail, AlertCircle, ShieldCheck } from 'lucide-react';
-import vggLogo from '@/assets/vgg-logo.webp';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -42,7 +41,7 @@ export default function Login() {
             <ShieldCheck className="w-16 h-16 text-white/90 mx-auto mb-6" />
             <h2 className="text-3xl font-bold text-white mb-3 tracking-tight">Admin Console</h2>
             <p className="text-white/70 text-sm leading-relaxed max-w-sm">
-              Access the analytics dashboard, manage appraisal data, and generate performance insights across the organisation.
+             Access the analytics dashboard, manage review data, and generate performance insights across the organisation.
             </p>
           </motion.div>
         </div>
@@ -59,10 +58,11 @@ export default function Login() {
           className="w-full max-w-sm"
         >
           <div className="mb-8">
-            <img src={vggLogo} alt="Venture Garden Group" className="h-8 w-auto mb-8" />
+            <span className="text-2xl font-extrabold tracking-tight text-foreground">ProDG</span>
+            <div className="mt-6" />
             <h1 className="text-2xl font-bold tracking-tight mb-1">Administrator Sign In</h1>
             <p className="text-muted-foreground text-sm">
-              VGG 360° Performance Analytics
+              ProDG 360° Performance Review
             </p>
           </div>
 
@@ -74,7 +74,7 @@ export default function Login() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@vgg.com"
+                  placeholder="admin@prodg.studio"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 h-11"

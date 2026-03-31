@@ -16,9 +16,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Hardcoded credentials
 const VALID_CREDENTIALS = {
-  email: 'admin@vgg.com',
-  password: 'VGG360Analytics!',
-  name: 'VGG Admin',
+  email: 'admin@prodg.studio',
+  password: 'ProDG360Review!',
+  name: 'ProDG Admin',
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check for existing session
-    const savedUser = localStorage.getItem('vgg_user');
+    const savedUser = localStorage.getItem('prodg_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (email === VALID_CREDENTIALS.email && password === VALID_CREDENTIALS.password) {
       const userData = { email, name: VALID_CREDENTIALS.name };
       setUser(userData);
-      localStorage.setItem('vgg_user', JSON.stringify(userData));
+      localStorage.setItem('prodg_user', JSON.stringify(userData));
       return true;
     }
     return false;
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('vgg_user');
+    localStorage.removeItem('prodg_user');
   };
 
   return (

@@ -1,10 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const allowedOrigins = [
-  "https://three60appraisal.onrender.com",
   "http://localhost:5173",
   "http://localhost:8080",
-  "https://id-preview--13fa90b5-15b3-4b0e-96ac-5bc3269f79e4.lovable.app",
 ];
 
 function getCorsHeaders(origin: string | null) {
@@ -32,7 +30,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are an expert HR analytics assistant for VGG 360° Performance Reviews. You have comprehensive access to the complete appraisal dataset and must provide thorough, data-driven analysis.
+    const systemPrompt = `You are an expert HR analytics assistant for ProDG 360° Performance Reviews. You have comprehensive access to the complete review dataset and must provide thorough, data-driven analysis.
 
 === COMPLETE DATA CONTEXT ===
 ${dataContext}

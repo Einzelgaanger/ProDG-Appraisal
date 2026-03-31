@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import {
   Search, ArrowLeft, CheckCircle2, AlertCircle, Loader2, Building2, Mail,
 } from 'lucide-react';
-import vggLogo from '@/assets/vgg-logo.webp';
 
 interface EmployeeResult {
   id: string;
@@ -195,7 +194,8 @@ export default function FindAccount() {
         className="w-full max-w-md"
       >
         <div className="mb-8">
-          <img src={vggLogo} alt="Venture Garden Group" className="h-8 w-auto mb-8" />
+          <span className="text-2xl font-extrabold tracking-tight text-foreground">ProDG</span>
+          <div className="mt-6" />
           <h1 className="text-2xl font-bold font-serif mb-1">Find Your Account</h1>
           <p className="text-muted-foreground text-sm">
             Search by your name or work email to locate your profile.

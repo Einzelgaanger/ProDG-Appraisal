@@ -6,29 +6,29 @@
 
 @layer base {
   :root {
-    /* VGG Branding — Green & Blue, Formal Corporate */
+    /* ProDG Branding — Black, White & Gray, Dev Community */
     --background: 0 0% 100%;
-    --foreground: 160 25% 12%;
+    --foreground: 0 0% 9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 160 25% 12%;
+    --card-foreground: 0 0% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 160 25% 12%;
+    --popover-foreground: 0 0% 9%;
 
-    --primary: 145 63% 42%;
+    --primary: 0 0% 9%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 150 8% 95%;
-    --secondary-foreground: 160 20% 25%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 20%;
 
-    --muted: 150 8% 94%;
-    --muted-foreground: 160 8% 48%;
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 210 72% 45%;
+    --accent: 0 0% 20%;
     --accent-foreground: 0 0% 100%;
 
-    --success: 145 63% 42%;
+    --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
 
     --warning: 38 80% 50%;
@@ -37,31 +37,31 @@
     --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 150 8% 90%;
-    --input: 150 8% 90%;
-    --ring: 145 63% 42%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 9%;
 
     --radius: 0.75rem;
 
-    --chart-1: 145 63% 42%;
-    --chart-2: 210 72% 45%;
-    --chart-3: 152 40% 58%;
-    --chart-4: 210 50% 62%;
-    --chart-5: 38 80% 50%;
+    --chart-1: 0 0% 15%;
+    --chart-2: 0 0% 35%;
+    --chart-3: 0 0% 55%;
+    --chart-4: 0 0% 70%;
+    --chart-5: 0 0% 85%;
 
-    --score-excellent: 145 63% 42%;
+    --score-excellent: 142 71% 45%;
     --score-good: 210 72% 45%;
     --score-average: 38 80% 50%;
     --score-poor: 0 65% 50%;
 
-    --sidebar-background: 160 30% 14%;
-    --sidebar-foreground: 150 15% 92%;
-    --sidebar-primary: 145 63% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 160 28% 20%;
-    --sidebar-accent-foreground: 150 15% 92%;
-    --sidebar-border: 160 22% 22%;
-    --sidebar-ring: 145 63% 48%;
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 92%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 0 0% 9%;
+    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent-foreground: 0 0% 92%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 0 0% 100%;
   }
 
 }
