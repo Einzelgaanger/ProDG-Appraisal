@@ -71,7 +71,10 @@ export default function EmployeeLogin() {
           className="w-full max-w-sm"
         >
           <div className="mb-8">
-            <span className="text-2xl font-bold tracking-tight">ProDG</span>
+            <div className="flex items-center gap-2.5">
+              <img src={prodgLogo} alt="ProDG" className="h-7 w-7" />
+              <span className="text-2xl font-bold tracking-tight">ProDG</span>
+            </div>
             <div className="mt-6" />
             <div className="label-mono mb-2">// sign_in</div>
             <h1 className="text-2xl font-bold mb-1">Welcome Back</h1>
