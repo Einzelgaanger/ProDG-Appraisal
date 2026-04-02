@@ -40,6 +40,7 @@ export default function EmployeeLogin() {
         }} />
         <div className="relative z-10">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <img src={prodgLogo} alt="ProDG" className="h-10 w-10 mb-6 invert" />
             <div className="mono text-accent text-xs mb-6 uppercase tracking-[0.2em]">// authenticate</div>
             <h2 className="text-4xl font-bold text-background mb-4">PEER<br/>REVIEW_</h2>
             <p className="text-background/50 text-sm leading-relaxed max-w-sm mb-8">
