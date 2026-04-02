@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { LogOut, Menu, X } from 'lucide-react';
+import prodgLogo from '@/assets/prodg-logo.png';
 
 interface VGGHeaderProps {
   subtitle?: string;
