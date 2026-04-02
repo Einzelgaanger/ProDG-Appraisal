@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ArrowLeft, Search } from 'lucide-react';
 import TypewriterText from '@/components/TypewriterText';
+import prodgLogo from '@/assets/prodg-logo.png';
 
 export default function Onboarding() {
   const [slide, setSlide] = useState(0);
