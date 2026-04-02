@@ -16,7 +16,9 @@ export function useAppraisalData() {
     const loadData = async () => {
       try {
         setLoading(true);
-        const data = await processExcelData('/data/VGG_360_Reorganized.xlsx');
+        const dataPath =
+          import.meta.env.VITE_APPRAISAL_DATA_URL || '/data/VGG_360_Reorganized.xlsx';
+        const data = await processExcelData(dataPath);
         setResponses(data);
         setError(null);
       } catch (err) {

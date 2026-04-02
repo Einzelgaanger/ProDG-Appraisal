@@ -17,6 +17,14 @@ dist-ssr
 .env.*
 !.env.example
 
+# Local appraisal dataset (may contain PII; place file locally or set VITE_APPRAISAL_DATA_URL)
+public/data/*.xlsx
+
+# Certificates and keys
+*.pem
+*.p12
+*.key
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
