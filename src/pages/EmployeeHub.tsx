@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useEmployeeAuth } from '@/contexts/EmployeeAuthContext';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import VGGHeader from '@/components/VGGHeader';
 import {
-  CheckCircle2, ChevronRight, ChevronLeft, Send, Loader2, Shield,
+  CheckCircle2, ChevronRight, ChevronLeft, Send, Loader2,
   BarChart3, Users, Search, X, Lock, Plus, Minus, ClipboardList,
 } from 'lucide-react';
 import GrowthTab from '@/components/dashboard/GrowthTab';
@@ -36,7 +36,7 @@ const SCALE_OPTIONS = [
 const pageT = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.15 } };
 
 export default function EmployeeHub() {
-  const { user, profile, isAdmin, logout } = useEmployeeAuth();
+  const { user, profile, logout } = useEmployeeAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'review';
@@ -202,11 +202,6 @@ export default function EmployeeHub() {
         maxWidth="max-w-4xl"
         actions={
           <>
-            {isAdmin && (
-              <Button variant="outline" size="sm" asChild className="h-8 text-xs gap-1.5">
-                <Link to="/admin"><Shield className="w-3.5 h-3.5" /> Admin</Link>
-              </Button>
-            )}
             <div className="hidden sm:flex items-center gap-1.5 label-mono px-2">
               <Lock className="w-3 h-3" /> Anonymous
             </div>

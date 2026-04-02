@@ -121,12 +121,9 @@ export default function EmployeeLogin() {
             </Button>
           </form>
 
-          <div className="mt-8 space-y-3 text-center">
+          <div className="mt-8 text-center">
             <Link to="/find-account" className="text-sm text-foreground hover:text-accent font-medium block mono text-xs">
               First time? Find your account →
-            </Link>
-            <Link to="/admin" className="text-xs text-muted-foreground hover:text-foreground block">
-              Admin access →
             </Link>
           </div>
         </motion.div>
