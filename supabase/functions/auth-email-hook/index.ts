@@ -17,12 +17,12 @@ const corsHeaders = {
 }
 
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'VGG 360° Appraisal — Confirm Your Email',
-  invite: "VGG 360° Appraisal — You've Been Invited",
-  magiclink: 'VGG 360° Appraisal — Your Secure Login Link',
-  recovery: 'VGG 360° Appraisal — Reset Your Password',
-  email_change: 'VGG 360° Appraisal — Confirm Email Change',
-  reauthentication: 'VGG 360° Appraisal — Verification Code',
+  signup: 'ProDG 360° Review — Confirm Your Email',
+  invite: "ProDG 360° Review — You've Been Invited",
+  magiclink: 'ProDG 360° Review — Your Secure Login Link',
+  recovery: 'ProDG 360° Review — Reset Your Password',
+  email_change: 'ProDG 360° Review — Confirm Email Change',
+  reauthentication: 'ProDG 360° Review — Verification Code',
 }
 
 // Template mapping
