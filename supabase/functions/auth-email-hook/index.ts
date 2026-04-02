@@ -36,10 +36,10 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "VGG 360° Appraisal"
-const SENDER_DOMAIN = "notify.appraisal.vgg.app"
-const ROOT_DOMAIN = "appraisal.vgg.app"
-const FROM_DOMAIN = "appraisal.vgg.app"
+const SITE_NAME = "ProDG 360° Review"
+const SENDER_DOMAIN = "notify.appraisal.prodg.studio"
+const ROOT_DOMAIN = "appraisal.prodg.studio"
+const FROM_DOMAIN = "appraisal.prodg.studio"
 
 const SAMPLE_PROJECT_URL = "https://vgg360appraisal.lovable.app"
 const SAMPLE_EMAIL = "user@example.test"
