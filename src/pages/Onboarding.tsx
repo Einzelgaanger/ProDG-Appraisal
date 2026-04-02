@@ -45,8 +45,8 @@ export default function Onboarding() {
         </div>
       </div>
 
-      {/* Slide content */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 pb-32 pt-8">
+      {/* Slide content — extra bottom padding for fixed nav + mobile safe area */}
+      <div className="flex-1 flex items-start sm:items-center justify-center px-4 sm:px-6 pb-36 sm:pb-32 pt-6 sm:pt-8 overflow-y-auto">
         <AnimatePresence mode="wait">
           {slide === 0 && <SlideWelcome key="w" />}
           {slide === 1 && <SlideHow key="h" />}
@@ -97,15 +97,15 @@ function SlideWelcome() {
       transition={{ duration: 0.2 }}
       className="max-w-3xl w-full"
     >
-      <div className="label-mono mb-6">// peer_review</div>
+      <div className="label-mono mb-4 sm:mb-6">// peer_review</div>
 
-      <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] mb-2">
+      <h1 className="text-[1.65rem] sm:text-4xl lg:text-5xl xl:text-6xl font-bold leading-[1.08] mb-2">
         NOT AWARDS.
       </h1>
-      <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] mb-2 text-muted-foreground">
+      <h1 className="text-[1.65rem] sm:text-4xl lg:text-5xl xl:text-6xl font-bold leading-[1.08] mb-2 text-muted-foreground">
         NOT RANKINGS.
       </h1>
-      <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] mb-8">
+      <h1 className="text-[1.65rem] sm:text-4xl lg:text-5xl xl:text-6xl font-bold leading-[1.08] mb-6 sm:mb-8">
         <TypewriterText
           texts={['GROWTH_', 'HONESTY_', 'EACH OTHER_']}
           speed={80}
@@ -151,23 +151,23 @@ function SlideHow() {
       transition={{ duration: 0.2 }}
       className="max-w-3xl w-full"
     >
-      <div className="label-mono mb-6">// how_it_works</div>
+      <div className="label-mono mb-4 sm:mb-6">// how_it_works</div>
 
-      <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-[1.05] mb-10">
+      <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold leading-[1.1] mb-6 sm:mb-10 break-words">
         PICK → LOCK → REVIEW
       </h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {steps.map((step, i) => (
           <motion.div
             key={step.num}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 + i * 0.1, duration: 0.3 }}
-            className="border-2 border-foreground/10 p-5 hover:border-foreground/30 transition-colors group"
+            className="border-2 border-foreground/10 p-4 sm:p-5 hover:border-foreground/30 transition-colors text-left"
           >
-            <div className="mono text-accent text-xs font-bold mb-3">{step.num}</div>
-            <h3 className="text-lg font-bold mb-2">{step.title}</h3>
+            <div className="mono text-accent text-xs font-bold mb-2 sm:mb-3">{step.num}</div>
+            <h3 className="text-base sm:text-lg font-bold mb-1.5 sm:mb-2">{step.title}</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">{step.desc}</p>
           </motion.div>
         ))}
@@ -186,9 +186,9 @@ function SlideStart({ navigate }: { navigate: (path: string) => void }) {
       transition={{ duration: 0.2 }}
       className="max-w-2xl w-full"
     >
-      <div className="label-mono mb-6">// get_started</div>
+      <div className="label-mono mb-4 sm:mb-6">// get_started</div>
 
-      <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-[1.05] mb-4">
+      <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold leading-[1.1] mb-3 sm:mb-4 min-h-[3.5rem] sm:min-h-0">
         <TypewriterText
           texts={['YOUR VOICE_', 'RAW FEEDBACK_', 'REAL GROWTH_']}
           speed={80}
@@ -199,27 +199,29 @@ function SlideStart({ navigate }: { navigate: (path: string) => void }) {
         <span className="inline-block w-[3px] h-[0.75em] bg-accent ml-1 animate-pulse" />
       </h1>
 
-      <p className="text-muted-foreground text-base sm:text-lg leading-relaxed max-w-lg mb-10">
+      <p className="text-muted-foreground text-sm sm:text-lg leading-relaxed max-w-lg mb-8 sm:mb-10">
         This isn't about looking good. It's about helping each other get better.
         Sign in and start reviewing your peers — anonymously and honestly.
       </p>
 
-      <div className="flex flex-col sm:flex-row gap-3 mb-8">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6 sm:mb-8 w-full">
         <button
+          type="button"
           onClick={() => navigate('/login')}
-          className="border-2 border-foreground bg-foreground text-background px-8 py-3 font-bold uppercase tracking-[0.1em] text-sm hover:shadow-[4px_4px_0px_0px] hover:shadow-accent hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all flex items-center gap-2 justify-center"
+          className="w-full border-2 border-foreground bg-foreground text-background px-6 sm:px-8 py-3.5 font-bold uppercase tracking-[0.08em] text-xs sm:text-sm hover:shadow-[4px_4px_0px_0px] hover:shadow-accent hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all flex items-center gap-2 justify-center min-h-[48px]"
         >
-          Sign In <ArrowRight className="w-4 h-4" />
+          Sign In <ArrowRight className="w-4 h-4 shrink-0" />
         </button>
         <button
+          type="button"
           onClick={() => navigate('/find-account')}
-          className="border-2 border-foreground/30 px-8 py-3 font-bold uppercase tracking-[0.1em] text-sm hover:border-foreground hover:shadow-[4px_4px_0px_0px] hover:shadow-foreground/20 hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all flex items-center gap-2 justify-center"
+          className="w-full border-2 border-foreground/30 px-6 sm:px-8 py-3.5 font-bold uppercase tracking-[0.08em] text-xs sm:text-sm hover:border-foreground hover:shadow-[4px_4px_0px_0px] hover:shadow-foreground/20 hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all flex items-center gap-2 justify-center min-h-[48px]"
         >
-          <Search className="w-4 h-4" /> Find My Account
+          <Search className="w-4 h-4 shrink-0" /> Find My Account
         </button>
       </div>
 
-      <div className="flex items-center gap-4 mono text-[10px] text-muted-foreground uppercase tracking-[0.15em]">
+      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-4 gap-y-2 mono text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-[0.12em]">
         <span>Team Members Only</span>
         <span className="w-1 h-1 bg-foreground/20" />
         <span>Anonymous & Encrypted</span>

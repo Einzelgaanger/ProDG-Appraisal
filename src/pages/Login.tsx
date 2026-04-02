@@ -32,7 +32,14 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
+      <div className="lg:hidden border-b-2 border-foreground/10 px-4 py-4 flex items-center gap-3 bg-card/50 shrink-0">
+        <img src={prodgLogo} alt="" className="h-9 w-9" />
+        <div className="min-w-0">
+          <p className="font-bold text-base">ProDG</p>
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Admin console</p>
+        </div>
+      </div>
       <div className="hidden lg:flex lg:w-[45%] bg-foreground relative overflow-hidden items-center justify-center p-12">
         <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.5) 39px, rgba(255,255,255,0.5) 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.5) 39px, rgba(255,255,255,0.5) 40px)',
@@ -48,7 +55,7 @@ export default function Login() {
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
+      <div className="flex-1 flex items-start sm:items-center justify-center p-4 sm:p-6 py-8">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
           <div className="mb-8">
             <div className="flex items-center gap-2.5">

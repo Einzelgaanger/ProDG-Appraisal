@@ -20,7 +20,7 @@ const EMAIL_SUBJECTS: Record<string, string> = {
   signup: 'ProDG 360° Review — Confirm Your Email',
   invite: "ProDG 360° Review — You've Been Invited",
   magiclink: 'ProDG 360° Review — Your Secure Login Link',
-  recovery: 'ProDG 360° Review — Reset Your Password',
+  recovery: 'Reset your ProDG password',
   email_change: 'ProDG 360° Review — Confirm Email Change',
   reauthentication: 'ProDG 360° Review — Verification Code',
 }

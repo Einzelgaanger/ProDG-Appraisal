@@ -32,7 +32,16 @@ export default function EmployeeLogin() {
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
+      {/* Mobile brand strip */}
+      <div className="lg:hidden border-b-2 border-foreground/10 px-4 py-4 flex items-center gap-3 bg-card/50 shrink-0">
+        <img src={prodgLogo} alt="" className="h-9 w-9" />
+        <div className="min-w-0 text-left">
+          <p className="font-bold text-base leading-tight">ProDG</p>
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider">360° Peer Review</p>
+        </div>
+      </div>
+
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-[45%] bg-foreground relative overflow-hidden items-center justify-center p-12">
         <div className="absolute inset-0 opacity-[0.03]" style={{
@@ -59,9 +68,9 @@ export default function EmployeeLogin() {
       </div>
 
       {/* Right form */}
-      <div className="flex-1 flex items-center justify-center relative p-4 sm:p-6 pt-16 sm:pt-6">
-        <div className="absolute top-5 left-5">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-1.5 text-muted-foreground hover:text-foreground">
+      <div className="flex-1 flex items-start sm:items-center justify-center relative p-4 sm:p-6 pt-4 sm:pt-6 pb-10">
+        <div className="absolute top-3 left-3 sm:top-5 sm:left-5 z-10">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-1.5 text-muted-foreground hover:text-foreground h-9 px-2 sm:px-3">
             <ArrowLeft className="w-4 h-4" /> Back
           </Button>
         </div>
@@ -69,7 +78,7 @@ export default function EmployeeLogin() {
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-sm"
+          className="w-full max-w-sm pt-10 sm:pt-0"
         >
           <div className="mb-8">
             <div className="flex items-center gap-2.5">

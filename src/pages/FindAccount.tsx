@@ -118,22 +118,25 @@ export default function FindAccount() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background relative p-4 sm:p-6 pt-16 sm:pt-6">
-      <div className="absolute top-5 left-5">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-1.5 text-muted-foreground hover:text-foreground">
+    <div className="min-h-screen flex flex-col bg-background">
+      <div className="border-b-2 border-foreground/10 px-4 py-4 flex items-center gap-3 bg-card/50 shrink-0">
+        <img src={prodgLogo} alt="" className="h-9 w-9" />
+        <div className="min-w-0 text-left">
+          <p className="font-bold text-base leading-tight">ProDG</p>
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Find account</p>
+        </div>
+      </div>
+      <div className="flex-1 flex items-start sm:items-center justify-center relative p-4 sm:p-6 pt-4 pb-12">
+      <div className="absolute top-4 left-4 sm:top-6 sm:left-6">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-1.5 text-muted-foreground hover:text-foreground h-9">
           <ArrowLeft className="w-4 h-4" /> Back
         </Button>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md pt-12 sm:pt-8">
         <div className="mb-8">
-          <div className="flex items-center gap-2.5">
-            <img src={prodgLogo} alt="ProDG" className="h-7 w-7" />
-            <span className="text-2xl font-bold tracking-tight">ProDG</span>
-          </div>
-          <div className="mt-6" />
           <div className="label-mono mb-2">// find_account</div>
-          <h1 className="text-2xl font-bold mb-1">Find Your Account</h1>
+          <h1 className="text-xl sm:text-2xl font-bold mb-1">Find your account</h1>
           <p className="text-muted-foreground text-sm">Search by name or email to locate your profile.</p>
         </div>
 
@@ -199,6 +202,7 @@ export default function FindAccount() {
           </Link>
         </div>
       </motion.div>
+      </div>
     </div>
   );
 }
