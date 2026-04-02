@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { AppraisalResponse, ManagerSummary, FilterState, CompetencyScore, FeedbackThemes } from '@/types/appraisal';
 
 export function useDemoAppraisalData() {

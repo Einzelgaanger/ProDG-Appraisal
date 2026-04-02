@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import {
   Loader2, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp,
   AlertTriangle, Rocket, Repeat, MessageSquare, Zap, Shield, Star,
