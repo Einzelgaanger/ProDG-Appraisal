@@ -3,32 +3,37 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
     <title>ProDG 360° Review — Team Performance Intelligence</title>
-    <meta name="description" content="ProDG&#39;s 360° Review platform — peer performance intelligence, feedback analytics, and team insights for developer communities.">
+    <meta name="description" content="ProDG's 360° Review platform — peer performance intelligence, feedback analytics, and team insights for developer communities." />
     <meta name="author" content="ProDG" />
 
-    <!-- Open Graph -->
+    <!-- Canonical + social: __PRODG_SITE_URL__ replaced at build time (see vite.config.ts). Set VITE_SITE_URL for your production domain. -->
+    <link rel="canonical" href="__PRODG_SITE_URL__/" />
+
+    <!-- Open Graph (absolute image URL required for Facebook, LinkedIn, Slack, etc.) -->
     <meta property="og:type" content="website" />
-    
-    
+    <meta property="og:url" content="__PRODG_SITE_URL__/" />
     <meta property="og:site_name" content="ProDG 360° Review" />
     <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="ProDG 360° Review — Team Performance Intelligence" />
+    <meta property="og:description" content="ProDG's 360° Review platform — peer performance intelligence, feedback analytics, and team insights for developer communities." />
+    <meta property="og:image" content="__PRODG_SITE_URL__/og-image.jpg" />
+    <meta property="og:image:secure_url" content="__PRODG_SITE_URL__/og-image.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:alt" content="ProDG 360° Review — peer performance intelligence" />
 
-    <!-- Twitter Card -->
+    <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
-    
-    
+    <meta name="twitter:title" content="ProDG 360° Review — Team Performance Intelligence" />
+    <meta name="twitter:description" content="ProDG's 360° Review platform — peer performance intelligence, feedback analytics, and team insights for developer communities." />
+    <meta name="twitter:image" content="__PRODG_SITE_URL__/og-image.jpg" />
+    <meta name="twitter:image:alt" content="ProDG 360° Review — peer performance intelligence" />
 
-    <!-- Theme -->
     <meta name="theme-color" content="#1a2e22" />
-    <meta property="og:title" content="ProDG 360° Review — Team Performance Intelligence">
-  <meta name="twitter:title" content="ProDG 360° Review — Team Performance Intelligence">
-  <meta property="og:description" content="ProDG&#39;s 360° Review platform — peer performance intelligence, feedback analytics, and team insights for developer communities.">
-  <meta name="twitter:description" content="ProDG&#39;s 360° Review platform — peer performance intelligence, feedback analytics, and team insights for developer communities.">
-  <meta property="og:image" content="/og-image.jpg">
-  <meta name="twitter:image" content="/og-image.jpg">
-</head>
+  </head>
 
   <body>
     <div id="root"></div>
