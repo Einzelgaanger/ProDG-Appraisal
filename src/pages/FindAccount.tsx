@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import prodgLogo from '@/assets/prodg-logo.png';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
@@ -126,7 +127,10 @@ export default function FindAccount() {
 
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
         <div className="mb-8">
-          <span className="text-2xl font-bold tracking-tight">ProDG</span>
+          <div className="flex items-center gap-2.5">
+            <img src={prodgLogo} alt="ProDG" className="h-7 w-7" />
+            <span className="text-2xl font-bold tracking-tight">ProDG</span>
+          </div>
           <div className="mt-6" />
           <div className="label-mono mb-2">// find_account</div>
           <h1 className="text-2xl font-bold mb-1">Find Your Account</h1>

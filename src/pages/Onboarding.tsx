@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ArrowLeft, Search } from 'lucide-react';
 import TypewriterText from '@/components/TypewriterText';
+import prodgLogo from '@/assets/prodg-logo.png';
 
 export default function Onboarding() {
   const [slide, setSlide] = useState(0);
@@ -16,6 +17,7 @@ export default function Onboarding() {
       {/* Header */}
       <header className="flex items-center justify-between px-4 sm:px-10 py-4 border-b-2 border-foreground/10">
         <div className="flex items-center gap-3">
+          <img src={prodgLogo} alt="ProDG" className="h-7 w-7" />
           <span className="text-xl font-bold tracking-tight">ProDG</span>
           <span className="hidden sm:block label-mono border-l-2 border-foreground/10 pl-3">
             360° Peer Review

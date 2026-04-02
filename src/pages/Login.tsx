@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Lock, Mail, AlertCircle, ShieldCheck } from 'lucide-react';
+import prodgLogo from '@/assets/prodg-logo.png';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -50,7 +51,10 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
           <div className="mb-8">
-            <span className="text-2xl font-bold tracking-tight">ProDG</span>
+            <div className="flex items-center gap-2.5">
+              <img src={prodgLogo} alt="ProDG" className="h-7 w-7" />
+              <span className="text-2xl font-bold tracking-tight">ProDG</span>
+            </div>
             <div className="mt-6" />
             <div className="label-mono mb-2">// admin</div>
             <h1 className="text-2xl font-bold mb-1">Administrator</h1>
