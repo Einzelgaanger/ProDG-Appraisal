@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import prodgLogo from '@/assets/prodg-logo.png';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
