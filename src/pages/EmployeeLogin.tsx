@@ -57,7 +57,7 @@ export default function EmployeeLogin() {
       </div>
 
       {/* Right form */}
-      <div className="flex-1 flex items-center justify-center relative p-6">
+      <div className="flex-1 flex items-center justify-center relative p-4 sm:p-6 pt-16 sm:pt-6">
         <div className="absolute top-5 left-5">
           <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-1.5 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="w-4 h-4" /> Back

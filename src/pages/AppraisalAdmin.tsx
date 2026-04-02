@@ -266,7 +266,7 @@ ${feedbackSample || '• No text feedback yet'}`;
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="gap-1 flex-shrink-0">
               <ArrowLeft className="w-4 h-4" /> Dashboard
@@ -283,7 +283,7 @@ ${feedbackSample || '• No text feedback yet'}`;
               <p className="text-xs text-muted-foreground">Real-time response tracking & analytics</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="ghost" size="sm" onClick={loadAllData} className="gap-1">
               <RefreshCw className="w-3 h-3" /> Refresh
             </Button>
@@ -352,11 +352,11 @@ ${feedbackSample || '• No text feedback yet'}`;
           </div>
         ) : (
           <Tabs value={adminTab} onValueChange={setAdminTab}>
-            <TabsList className="grid w-full grid-cols-4 h-10">
-              <TabsTrigger value="overview" className="text-xs gap-1.5"><BarChart3 className="w-3 h-3" /> Overview</TabsTrigger>
-              <TabsTrigger value="people" className="text-xs gap-1.5"><Users className="w-3 h-3" /> People</TabsTrigger>
-              <TabsTrigger value="trends" className="text-xs gap-1.5"><TrendingUp className="w-3 h-3" /> Trends</TabsTrigger>
-              <TabsTrigger value="feed" className="text-xs gap-1.5"><Clock className="w-3 h-3" /> Live Feed</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4 h-auto min-h-10">
+              <TabsTrigger value="overview" className="text-[11px] sm:text-xs gap-1 px-1.5 sm:px-3"><BarChart3 className="w-3 h-3" /> Overview</TabsTrigger>
+              <TabsTrigger value="people" className="text-[11px] sm:text-xs gap-1 px-1.5 sm:px-3"><Users className="w-3 h-3" /> People</TabsTrigger>
+              <TabsTrigger value="trends" className="text-[11px] sm:text-xs gap-1 px-1.5 sm:px-3"><TrendingUp className="w-3 h-3" /> Trends</TabsTrigger>
+              <TabsTrigger value="feed" className="text-[11px] sm:text-xs gap-1 px-1.5 sm:px-3"><Clock className="w-3 h-3" /> Live Feed</TabsTrigger>
             </TabsList>
 
             {/* ===== OVERVIEW TAB ===== */}
@@ -430,17 +430,39 @@ ${feedbackSample || '• No text feedback yet'}`;
 
             {/* ===== PEOPLE TAB ===== */}
             <TabsContent value="people" className="mt-4">
-              <div className="glass-panel p-5">
-                <div className="flex items-center justify-between mb-4">
+              <div className="glass-panel p-4 sm:p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                   <h3 className="text-sm font-semibold flex items-center gap-2">
                     <Trophy className="w-4 h-4 text-primary" /> Employee Leaderboard
                   </h3>
-                  <div className="relative w-64">
+                  <div className="relative w-full sm:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input placeholder="Search employees..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 h-9 text-sm" />
                   </div>
                 </div>
-                <div className="overflow-x-auto">
+
+                <div className="grid gap-2 sm:hidden">
+                  {employeeLeaderboard.map((emp, i) => (
+                    <div key={`${emp.name}-${i}`} className="rounded-lg border border-border/40 p-3 bg-background/70">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{i + 1}. {emp.name}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">{emp.department || 'Unassigned'} - {emp.subsidiary}</p>
+                        </div>
+                        <Badge variant="secondary" className="text-[10px] shrink-0">{emp.count} reviews</Badge>
+                      </div>
+                      <div className="mt-2 flex items-center gap-1 text-sm">
+                        <Star className="w-3.5 h-3.5 text-primary" />
+                        <span className={`font-semibold ${
+                          emp.avgScore >= 4 ? 'text-success' : emp.avgScore >= 3 ? 'text-primary' : emp.avgScore >= 2 ? 'text-warning' : 'text-destructive'
+                        }`}>{emp.avgScore}</span>
+                        <span className="text-xs text-muted-foreground">avg score</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="overflow-x-auto hidden sm:block">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border/50">

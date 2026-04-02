@@ -214,16 +214,16 @@ export default function EmployeeHub() {
         }
       />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-4">
+      <div className="max-w-4xl mx-auto px-3 sm:px-6 pt-4 pb-6">
         <Tabs value={activeTab} onValueChange={t => setSearchParams({ tab: t })}>
-          <TabsList className="grid w-full grid-cols-3 h-11">
-            <TabsTrigger value="review" className="gap-2 text-xs sm:text-sm font-bold uppercase tracking-wider">
+          <TabsList className="grid w-full grid-cols-3 h-auto min-h-11">
+            <TabsTrigger value="review" className="gap-1 sm:gap-2 text-[11px] sm:text-sm font-bold uppercase tracking-wide px-1.5 sm:px-3">
               <Users className="w-3.5 h-3.5" /> Review
             </TabsTrigger>
-            <TabsTrigger value="growth" className="gap-2 text-xs sm:text-sm font-bold uppercase tracking-wider">
+            <TabsTrigger value="growth" className="gap-1 sm:gap-2 text-[11px] sm:text-sm font-bold uppercase tracking-wide px-1.5 sm:px-3">
               <BarChart3 className="w-3.5 h-3.5" /> My Growth
             </TabsTrigger>
-            <TabsTrigger value="pulse" className="gap-2 text-xs sm:text-sm font-bold uppercase tracking-wider">
+            <TabsTrigger value="pulse" className="gap-1 sm:gap-2 text-[11px] sm:text-sm font-bold uppercase tracking-wide px-1.5 sm:px-3">
               <ClipboardList className="w-3.5 h-3.5" /> Team Pulse
             </TabsTrigger>
           </TabsList>
@@ -251,7 +251,7 @@ export default function EmployeeHub() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-24">
+                  <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 gap-2 mb-24">
                     {filteredPool.map(person => {
                       const selected = selectedKeys.has(person.key);
                       const reviewed = completedReviews.has(person.primaryEmployeeId);
@@ -291,13 +291,13 @@ export default function EmployeeHub() {
                     <motion.div
                       initial={{ y: 100 }}
                       animate={{ y: 0 }}
-                      className="fixed bottom-0 left-0 right-0 bg-foreground text-background border-t-2 border-accent py-4 px-6 flex items-center justify-between z-30"
+                      className="fixed bottom-0 left-0 right-0 bg-foreground text-background border-t-2 border-accent py-3 px-4 sm:py-4 sm:px-6 flex items-center justify-between gap-3 z-30"
                     >
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-lg font-bold">{selectedKeys.size}</span>
-                        <span className="mono text-xs ml-2 text-background/60 uppercase tracking-wider">people selected</span>
+                        <span className="mono text-[10px] sm:text-xs ml-2 text-background/60 uppercase tracking-wider">people selected</span>
                       </div>
-                      <button onClick={lockIn} className="bg-accent text-accent-foreground px-6 py-2.5 font-bold uppercase tracking-[0.1em] text-sm flex items-center gap-2 hover:shadow-[3px_3px_0px_0px] hover:shadow-background/30 transition-all">
+                      <button onClick={lockIn} className="bg-accent text-accent-foreground px-4 sm:px-6 py-2.5 font-bold uppercase tracking-[0.08em] text-xs sm:text-sm flex items-center gap-2 hover:shadow-[3px_3px_0px_0px] hover:shadow-background/30 transition-all">
                         <Lock className="w-4 h-4" /> Lock In
                       </button>
                     </motion.div>

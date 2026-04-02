@@ -14,7 +14,7 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 sm:px-10 py-4 border-b-2 border-foreground/10">
+      <header className="flex items-center justify-between px-4 sm:px-10 py-4 border-b-2 border-foreground/10">
         <div className="flex items-center gap-3">
           <span className="text-xl font-bold tracking-tight">ProDG</span>
           <span className="hidden sm:block label-mono border-l-2 border-foreground/10 pl-3">
@@ -23,14 +23,14 @@ export default function Onboarding() {
         </div>
         <button
           onClick={() => navigate('/login')}
-          className="border-2 border-foreground px-4 py-2 text-[10px] font-bold uppercase tracking-[0.15em] hover:bg-foreground hover:text-background transition-colors"
+          className="border-2 border-foreground px-3 sm:px-4 py-2 text-[10px] font-bold uppercase tracking-[0.12em] hover:bg-foreground hover:text-background transition-colors"
         >
           Sign In
         </button>
       </header>
 
       {/* Progress */}
-      <div className="px-6 sm:px-10 py-3">
+      <div className="px-4 sm:px-10 py-3">
         <div className="max-w-3xl mx-auto flex gap-1">
           {[0, 1, 2].map(i => (
             <div
@@ -44,7 +44,7 @@ export default function Onboarding() {
       </div>
 
       {/* Slide content */}
-      <div className="flex-1 flex items-center justify-center px-6 pb-28 pt-8">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 pb-32 pt-8">
         <AnimatePresence mode="wait">
           {slide === 0 && <SlideWelcome key="w" />}
           {slide === 1 && <SlideHow key="h" />}
@@ -53,7 +53,7 @@ export default function Onboarding() {
       </div>
 
       {/* Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t-2 border-foreground/10 py-5 flex items-center justify-center gap-6">
+      <div className="fixed bottom-0 left-0 right-0 bg-background border-t-2 border-foreground/10 py-4 sm:py-5 px-4 flex items-center justify-center gap-4 sm:gap-6">
         <button
           onClick={prev}
           disabled={slide === 0}
