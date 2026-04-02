@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChatMessage, InsightSuggestion } from '@/types/appraisal';
 import { cn } from '@/lib/utils';
+import { supabasePublishableKey, supabaseUrl } from '@/lib/supabase';
 
 const INSIGHT_SUGGESTIONS_ROW1: InsightSuggestion[] = [
   { id: '1', question: 'Who are the top 3 performing managers?', category: 'performance' },
