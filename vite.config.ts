@@ -6,7 +6,7 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const siteUrl = (env.VITE_SITE_URL || "https://appraisal.vgg.app").replace(/\/$/, "");
+  const siteUrl = (env.VITE_SITE_URL || "https://appraisal.prodg.studio").replace(/\/$/, "");
 
   return {
     server: {
@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => {
       allowedHosts: [
         "three60appraisal.onrender.com",
         "appraisal.vgg.app",
+        "appraisal.prodg.studio",
         "localhost",
       ],
     },
