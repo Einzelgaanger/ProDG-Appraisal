@@ -1,15 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import {
   Loader2, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp,
-  AlertTriangle, Rocket, Repeat, MessageSquare, Zap, Shield, Star,
+  AlertTriangle, Rocket, Repeat, MessageSquare, Zap, Star, Brain, Sparkles,
 } from 'lucide-react';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
 import type { User } from '@supabase/supabase-js';
+import { Button } from '@/components/ui/button';
 
 interface Category { id: string; name: string; sort_order: number; }
 interface Question { id: string; category_id: string; question_text: string; question_type: string; sort_order: number; }
@@ -27,6 +28,23 @@ interface GrowthTabProps {
 
 const pageT = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.15 } };
 
+function renderInsightMarkdown(text: string) {
+  const lines = text.split('\n');
+  return lines.map((line, lineIdx) => {
+    if (!line.trim()) return <div key={lineIdx} className="h-2" />;
+    const boldParts = line.split(/(\*\*[^*]+\*\*)/g);
+    return (
+      <p key={lineIdx} className="text-sm text-foreground/90 mb-2 last:mb-0 leading-relaxed">
+        {boldParts.map((part, i) => {
+          const m = part.match(/^\*\*(.+)\*\*$/);
+          if (m) return <strong key={i} className="font-semibold text-foreground">{m[1]}</strong>;
+          return <span key={i}>{part}</span>;
+        })}
+      </p>
+    );
+  });
+}
+
 export default function GrowthTab({ user, profile, categories, questions }: GrowthTabProps) {
   const [loading, setLoading] = useState(true);
   const [catScores, setCatScores] = useState<CategoryScore[]>([]);
@@ -40,6 +58,11 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
   const [startFeedback, setStartFeedback] = useState<FeedbackItem[]>([]);
   const [continueFeedback, setContinueFeedback] = useState<FeedbackItem[]>([]);
 
+  const [feedbackDateRange, setFeedbackDateRange] = useState<{ from: Date; to: Date } | null>(null);
+  const [growthInsight, setGrowthInsight] = useState<string | null>(null);
+  const [growthInsightLoading, setGrowthInsightLoading] = useState(false);
+  const [growthInsightError, setGrowthInsightError] = useState<string | null>(null);
+
   useEffect(() => {
     if (user && profile?.employee_id) loadGrowthData();
   }, [user, profile]);
@@ -51,11 +74,18 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
       // Get my responses
       const { data: myResp } = await supabase
         .from('survey_responses')
-        .select('id')
+        .select('id, created_at')
         .eq('employee_id', profile.employee_id);
 
       if (!myResp?.length) { setLoading(false); return; }
       setTotalReviews(myResp.length);
+
+      const dates = myResp.map(r => new Date(r.created_at)).sort((a, b) => a.getTime() - b.getTime());
+      if (dates.length) {
+        setFeedbackDateRange({ from: dates[0], to: dates[dates.length - 1] });
+      } else {
+        setFeedbackDateRange(null);
+      }
 
       const responseIds = myResp.map(r => r.id);
 
@@ -177,6 +207,83 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
 
   const totalFeedback = stopFeedback.length + startFeedback.length + continueFeedback.length;
 
+  const buildGrowthContextForAI = useCallback(() => {
+    if (!catScores.length) return '';
+    let s = '';
+    s += `Overall: ${overallScore}/5 vs organisation average ${orgOverall}/5. Peer review responses received: ${totalReviews}.\n`;
+    if (feedbackDateRange) {
+      s += `Feedback window: ${feedbackDateRange.from.toLocaleDateString()} – ${feedbackDateRange.to.toLocaleDateString()}.\n`;
+    }
+    if (strongest && weakest) {
+      s += `Relative strength: ${strongest.category} (${strongest.myScore}/5). Growth edge: ${weakest.category} (${weakest.myScore}/5).\n`;
+    }
+    s += `\nCategory scores (you vs team average):\n`;
+    catScores.forEach(c => {
+      s += `- ${c.category}: ${c.myScore} vs ${c.orgAvg}\n`;
+    });
+    s += `\nQuestion-level (you vs team, delta):\n`;
+    Object.entries(questionDetails).forEach(([cat, details]) => {
+      details.forEach(d => {
+        s += `- [${cat}] ${d.question}: ${d.myScore} vs ${d.orgAvg} (delta ${d.delta})\n`;
+      });
+    });
+    s += `\nSTOP DOING (anonymous peer comments):\n`;
+    stopFeedback.forEach(x => {
+      s += `- ${x.text}\n`;
+    });
+    s += `\nSTART DOING (anonymous peer comments):\n`;
+    startFeedback.forEach(x => {
+      s += `- ${x.text}\n`;
+    });
+    s += `\nKEEP DOING (anonymous peer comments):\n`;
+    continueFeedback.forEach(x => {
+      s += `- ${x.text}\n`;
+    });
+    return s.slice(0, 24000);
+  }, [
+    catScores,
+    overallScore,
+    orgOverall,
+    totalReviews,
+    feedbackDateRange,
+    strongest,
+    weakest,
+    questionDetails,
+    stopFeedback,
+    startFeedback,
+    continueFeedback,
+  ]);
+
+  const generateGrowthInsight = async () => {
+    const ctx = buildGrowthContextForAI();
+    if (ctx.length < 20) return;
+    setGrowthInsightLoading(true);
+    setGrowthInsightError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('growth-insights', {
+        body: { growthContext: ctx },
+      });
+      if (error) {
+        setGrowthInsightError(error.message);
+        return;
+      }
+      const payload = data as { insight?: string; error?: string } | null;
+      if (payload?.error) {
+        setGrowthInsightError(payload.error);
+        return;
+      }
+      if (!payload?.insight) {
+        setGrowthInsightError('No insight returned. Is the growth-insights function deployed?');
+        return;
+      }
+      setGrowthInsight(payload.insight);
+    } catch (e) {
+      setGrowthInsightError(e instanceof Error ? e.message : 'Could not generate insights');
+    } finally {
+      setGrowthInsightLoading(false);
+    }
+  };
+
   const feedbackSections = [
     { key: 'stop' as const, label: 'STOP DOING', icon: AlertTriangle, items: stopFeedback, accent: 'text-red-500', bg: 'bg-red-500/10 border-red-500/30' },
     { key: 'start' as const, label: 'START DOING', icon: Rocket, items: startFeedback, accent: 'text-accent', bg: 'bg-accent/10 border-accent/30' },
@@ -240,6 +347,15 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
             <div className="text-2xl font-bold">{totalFeedback}</div>
           </div>
         </div>
+
+        {feedbackDateRange && (
+          <p className="text-[11px] text-muted-foreground mono px-0.5">
+            Feedback window:{' '}
+            {feedbackDateRange.from.toDateString() === feedbackDateRange.to.toDateString()
+              ? feedbackDateRange.from.toLocaleDateString()
+              : `${feedbackDateRange.from.toLocaleDateString()} – ${feedbackDateRange.to.toLocaleDateString()}`}
+          </p>
+        )}
 
         {/* Strongest / Weakest callout */}
         {strongest && weakest && strongest.category !== weakest.category && (
@@ -430,6 +546,63 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
             </div>
           </div>
         )}
+
+        {/* AI growth synthesis (edge function: growth-insights) */}
+        <div className="border-2 border-accent/40 bg-gradient-to-br from-accent/[0.07] to-transparent p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 border-2 border-accent/50 bg-accent/10 flex items-center justify-center flex-shrink-0">
+                <Brain className="w-5 h-5 text-accent" />
+              </div>
+              <div>
+                <div className="label-mono text-accent mb-0.5">// ai_growth_synthesis</div>
+                <h3 className="text-sm font-bold flex items-center gap-2 flex-wrap">
+                  Deeper insight
+                  <Sparkles className="w-4 h-4 text-accent" />
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 max-w-xl">
+                  Synthesises your scores and anonymous comments into themes and next steps. You stay in control — generate when you are ready.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant={growthInsight ? 'outline' : 'default'}
+              size="sm"
+              className="shrink-0 font-bold uppercase text-[10px] tracking-wider"
+              disabled={growthInsightLoading}
+              onClick={generateGrowthInsight}
+            >
+              {growthInsightLoading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                  Generating
+                </>
+              ) : growthInsight ? (
+                'Regenerate'
+              ) : (
+                'Generate insight'
+              )}
+            </Button>
+          </div>
+          <p className="text-[10px] text-muted-foreground border-l-2 border-foreground/15 pl-3 mb-3">
+            AI can misread nuance. Use this as a lens alongside your own judgment and the raw quotes above — not as a verdict.
+          </p>
+          {growthInsightError && (
+            <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 p-3 mb-3">
+              {growthInsightError}
+              <p className="text-[10px] text-muted-foreground mt-2 font-normal">
+                If this persists, ensure the <code className="mono text-[10px]">growth-insights</code> function is deployed and{' '}
+                <code className="mono text-[10px]">LOVABLE_API_KEY</code> is set in Supabase Edge Function secrets.
+              </p>
+            </div>
+          )}
+          {growthInsight && !growthInsightLoading && (
+            <div className="border border-foreground/10 bg-background/80 p-4 text-left">
+              {renderInsightMarkdown(growthInsight)}
+            </div>
+          )}
+        </div>
       </div>
     </motion.div>
   );
