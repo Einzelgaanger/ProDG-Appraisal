@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Lock, Mail, AlertCircle, ArrowLeft } from 'lucide-react';
+import prodgLogo from '@/assets/prodg-logo.png';
 
 export default function EmployeeLogin() {
   const [email, setEmail] = useState('');
