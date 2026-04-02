@@ -41,7 +41,7 @@ const SENDER_DOMAIN = "notify.appraisal.prodg.studio"
 const ROOT_DOMAIN = "appraisal.prodg.studio"
 const FROM_DOMAIN = "appraisal.prodg.studio"
 
-const SAMPLE_PROJECT_URL = "https://vgg360appraisal.lovable.app"
+const SAMPLE_PROJECT_URL = "https://appraisal.prodg.studio"
 const SAMPLE_EMAIL = "user@example.test"
 const SAMPLE_DATA: Record<string, object> = {
   signup: {
