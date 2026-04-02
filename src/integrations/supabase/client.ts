@@ -2,8 +2,22 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? '').trim();
+const SUPABASE_PUBLISHABLE_KEY = String(
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
+).trim();
+
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error(
+    '[ProDG] Supabase env vars are missing or empty.\n\n' +
+      'Add a .env file in the project root (see .env.example):\n' +
+      '  VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co\n' +
+      '  VITE_SUPABASE_PUBLISHABLE_KEY=<anon public key from Supabase>\n\n' +
+      '(You can use VITE_SUPABASE_ANON_KEY instead of PUBLISHABLE_KEY.)\n\n' +
+      'Dashboard: Project Settings → API.\n' +
+      'Production: set these on your host before npm run build (Vite embeds VITE_* at build time).'
+  );
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
