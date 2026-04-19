@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import {
   Loader2, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp,
   AlertTriangle, Rocket, Repeat, MessageSquare, Zap, Star, Brain, Sparkles,
+  HelpCircle,
 } from 'lucide-react';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer,
@@ -318,6 +319,38 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
             No awards, no rankings. Just honest signal to help you level up.
           </p>
         </div>
+
+        {/* How to read your scores — plain-English explainer */}
+        <details className="border-2 border-foreground/10 group">
+          <summary className="flex items-center justify-between p-3 sm:p-4 cursor-pointer list-none hover:bg-foreground/[0.02]">
+            <div className="flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-accent" />
+              <span className="text-sm font-bold">How to read your scores</span>
+            </div>
+            <ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="p-3 sm:p-4 pt-0 border-t border-foreground/10 space-y-3 text-xs sm:text-sm text-muted-foreground">
+            <div>
+              <p className="font-bold text-foreground mb-1">The 1–5 scale</p>
+              <p>Every question is rated from <strong>1 (Rarely)</strong> to <strong>5 (Consistently)</strong>. Your score in a category is the average of all the answers your peers gave you in that category.</p>
+            </div>
+            <div>
+              <p className="font-bold text-foreground mb-1">Example</p>
+              <p>If peers rated you <span className="mono">3, 4, 2</span> on the three questions in <em>Communication</em>, your score is <span className="mono">(3 + 4 + 2) ÷ 3 = 3.0 / 5</span>.</p>
+            </div>
+            <div>
+              <p className="font-bold text-foreground mb-1">"+0.5 vs team" — what it means</p>
+              <p>That's how you compare to the team's average for the same category. <strong className="text-green-600">Green / +</strong> means you're above the team average; <strong className="text-red-600">red / −</strong> means below. It's not a competition — it's context so you can spot where to focus.</p>
+            </div>
+            <div>
+              <p className="font-bold text-foreground mb-1">The radar chart</p>
+              <p>Each corner is a competency. The wider the shape, the more balanced your strengths. A dent on one side = a clear area to grow.</p>
+            </div>
+            <div className="pt-2 border-t border-foreground/5 text-[11px]">
+              <strong className="text-foreground">Reminder:</strong> All feedback is anonymous. You see the numbers and themes — never who said what.
+            </div>
+          </div>
+        </details>
 
         {/* Stats row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
