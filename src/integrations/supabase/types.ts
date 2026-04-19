@@ -446,6 +446,27 @@ export type Database = {
           },
         ]
       }
+      review_milestones_notified: {
+        Row: {
+          employee_id: string
+          id: string
+          notified_at: string
+          review_count: number
+        }
+        Insert: {
+          employee_id: string
+          id?: string
+          notified_at?: string
+          review_count: number
+        }
+        Update: {
+          employee_id?: string
+          id?: string
+          notified_at?: string
+          review_count?: number
+        }
+        Relationships: []
+      }
       subsidiaries: {
         Row: {
           created_at: string | null
