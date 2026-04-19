@@ -268,8 +268,8 @@ ${feedbackSample || '• No text feedback yet'}`;
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="gap-1 flex-shrink-0">
-              <ArrowLeft className="w-4 h-4" /> Dashboard
+            <Button variant="ghost" size="sm" onClick={() => navigate('/hub')} className="gap-1 flex-shrink-0">
+              <ArrowLeft className="w-4 h-4" /> Hub
             </Button>
             <div>
               <h1 className="text-base sm:text-lg font-bold text-primary flex items-center gap-2">
