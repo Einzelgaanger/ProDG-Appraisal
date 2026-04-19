@@ -202,7 +202,10 @@ export default function EmployeeHub() {
         maxWidth="max-w-4xl"
         actions={
           <>
-            <div className="hidden sm:flex items-center gap-1.5 label-mono px-2">
+            <div
+              className="hidden sm:flex items-center gap-1.5 label-mono px-2 cursor-help"
+              title="Your individual scores and comments are never shown to anyone — admins included. Only aggregated, anonymous results."
+            >
               <Lock className="w-3 h-3" /> Anonymous
             </div>
           </>
@@ -233,10 +236,16 @@ export default function EmployeeHub() {
                   <div className="border-2 border-foreground/10 p-5 sm:p-6 mb-4">
                     <div className="label-mono mb-2">// select_peers</div>
                     <h2 className="text-xl font-bold mb-1">Pick Your People</h2>
-                    <p className="text-sm text-muted-foreground mb-4">
+                    <p className="text-sm text-muted-foreground mb-3">
                       Choose teammates you've worked with closely enough to give honest, helpful feedback.
                       This isn't about scoring — it's about helping each other grow.
                     </p>
+                    <div className="flex items-start gap-2 p-3 mb-4 border-l-2 border-success bg-success/5 text-xs text-foreground/80">
+                      <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0 text-success" />
+                      <span>
+                        <strong>100% anonymous.</strong> The person you review never sees who reviewed them — and individual scores are never shared, even with admins.
+                      </span>
+                    </div>
                     <div className="relative mb-4">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input placeholder="Search by name or email..." value={poolSearch} onChange={e => setPoolSearch(e.target.value)} className="pl-10 h-10 border-2" />

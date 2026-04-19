@@ -93,19 +93,19 @@ export default function FindAccount() {
 
   if (sent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-6">
+      <div className="min-h-screen flex items-center justify-center bg-background px-6 py-10">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="max-w-sm w-full text-center">
-          <div className="w-16 h-16 border-2 border-accent bg-accent/10 flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 className="w-8 h-8 text-accent" />
+          <div className="w-16 h-16 border-2 border-success bg-success/10 flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 className="w-8 h-8 text-success" />
           </div>
           <h1 className="text-2xl font-bold mb-2">CHECK YOUR EMAIL</h1>
-          <p className="text-muted-foreground text-sm mb-1">Password reset link sent to</p>
-          <p className="mono text-sm font-bold mb-6">{sentTo}</p>
+          <p className="text-muted-foreground text-sm mb-1">Activation link sent to</p>
+          <p className="mono text-sm font-bold mb-6 break-all">{sentTo}</p>
           <div className="border-2 border-foreground/10 p-4 mb-8 text-left">
             <div className="label-mono mb-2">// next_steps</div>
             <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
-              <li>Open the email and click the reset link</li>
-              <li>Set a new password</li>
+              <li>Open the email and tap "Set my password"</li>
+              <li>Choose a password (link expires in 30 minutes)</li>
               <li>Sign in with your new password</li>
             </ol>
           </div>
@@ -123,7 +123,7 @@ export default function FindAccount() {
         <img src={prodgLogo} alt="" className="h-9 w-9" />
         <div className="min-w-0 text-left">
           <p className="font-bold text-base leading-tight">ProDG</p>
-          <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Find account</p>
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Activate / Reset</p>
         </div>
       </div>
       <div className="flex-1 flex items-start sm:items-center justify-center relative p-4 sm:p-6 pt-4 pb-12">
@@ -135,9 +135,11 @@ export default function FindAccount() {
 
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md pt-12 sm:pt-8">
         <div className="mb-8">
-          <div className="label-mono mb-2">// find_account</div>
+          <div className="label-mono mb-2">// activate_or_reset</div>
           <h1 className="text-xl sm:text-2xl font-bold mb-1">Find your account</h1>
-          <p className="text-muted-foreground text-sm">Search by name or email to locate your profile.</p>
+          <p className="text-muted-foreground text-sm">
+            New here? Find your name to activate your account. Already set up? This is also how you reset a forgotten password.
+          </p>
         </div>
 
         <div className="space-y-3 mb-4">

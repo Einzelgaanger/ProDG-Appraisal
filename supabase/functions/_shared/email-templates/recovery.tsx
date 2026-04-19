@@ -21,15 +21,21 @@ const LOGO_URL = 'https://appraisal.prodg.studio/favicon.png'
 interface RecoveryEmailProps {
   siteName: string
   confirmationUrl: string
+  recipient?: string
 }
 
+/**
+ * Used for both first-time activation AND password reset flows.
+ * The single Supabase auth recovery link drives both.
+ */
 export const RecoveryEmail = ({
   siteName,
   confirmationUrl,
+  recipient,
 }: RecoveryEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Reset your ProDG password — link expires soon</Preview>
+    <Preview>Set your ProDG password — link expires soon</Preview>
     <Body style={main}>
       <Container style={outer}>
         <Section style={headerBand}>
@@ -39,16 +45,20 @@ export const RecoveryEmail = ({
         </Section>
 
         <Section style={card}>
-          <Heading style={h1}>Password reset</Heading>
+          <Heading style={h1}>Set your password</Heading>
           <Text style={lead}>
-            We received a request to reset the password for your <strong>{siteName}</strong> account.
-            Use the button below — it only works for a limited time.
+            {recipient ? <>Hi <strong>{recipient}</strong>, </> : null}
+            tap the button below to choose a password for your <strong>{siteName}</strong> account.
+            New here? This is also how you activate your account for the first time.
           </Text>
           <Section style={btnWrap}>
             <Button style={button} href={confirmationUrl}>
-              Set new password
+              Set my password
             </Button>
           </Section>
+          <Text style={note}>
+            For your security, this link expires in <strong>30 minutes</strong> and can only be used once.
+          </Text>
           <Text style={muted}>
             If the button does not work, copy this URL into your browser:
           </Text>
@@ -57,7 +67,7 @@ export const RecoveryEmail = ({
 
         <Hr style={hr} />
         <Text style={footer}>
-          If you did not request this email, you can ignore it. Your password will stay the same.
+          Didn't request this? You can safely ignore this email — your account stays the same.
         </Text>
         <Text style={finePrint}>
           Transactional message from ProDG · do not reply to this address
@@ -71,7 +81,7 @@ export const RecoveryEmail = ({
 export default RecoveryEmail
 
 const main = {
-  backgroundColor: '#f4f4f0',
+  backgroundColor: '#ffffff',
   fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
   margin: 0,
   padding: '32px 16px',
@@ -97,7 +107,7 @@ const tagline = {
   letterSpacing: '0.12em',
 }
 const card = {
-  backgroundColor: '#ffffff',
+  backgroundColor: '#fafafa',
   borderRadius: '12px',
   padding: '36px 28px',
   border: '1px solid #e5e5e5',
@@ -113,9 +123,9 @@ const lead = {
   fontSize: '15px',
   color: '#404040',
   lineHeight: '1.65',
-  margin: '0 0 28px',
+  margin: '0 0 20px',
 }
-const btnWrap = { textAlign: 'center' as const, margin: '0 0 28px' }
+const btnWrap = { textAlign: 'center' as const, margin: '0 0 16px' }
 const button = {
   backgroundColor: '#0a0a0a',
   color: '#ffffff',
@@ -125,6 +135,13 @@ const button = {
   padding: '14px 28px',
   textDecoration: 'none',
   display: 'inline-block' as const,
+}
+const note = {
+  fontSize: '13px',
+  color: '#525252',
+  lineHeight: '1.5',
+  margin: '0 0 20px',
+  textAlign: 'center' as const,
 }
 const muted = {
   fontSize: '12px',
@@ -138,7 +155,7 @@ const linkBox = {
   wordBreak: 'break-all' as const,
   margin: '0',
   padding: '12px',
-  backgroundColor: '#fafafa',
+  backgroundColor: '#ffffff',
   borderRadius: '6px',
   border: '1px solid #eee',
 }

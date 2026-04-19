@@ -11,7 +11,7 @@ import EmployeeLogin from "./pages/EmployeeLogin";
 import FindAccount from "./pages/FindAccount";
 import ResetPassword from "./pages/ResetPassword";
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
+import Unsubscribe from "./pages/Unsubscribe";
 import DemoDashboard from "./pages/DemoDashboard";
 import EmployeeHub from "./pages/EmployeeHub";
 import AppraisalAdmin from "./pages/AppraisalAdmin";
@@ -38,7 +38,7 @@ function AdminGate() {
   const { isAuthenticated: isLegacyAdmin } = useAuth();
   const { isAuthenticated: isEmployee, isAdmin, isLoading } = useEmployeeAuth();
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
-  if (isLegacyAdmin || (isEmployee && isAdmin)) return <Navigate to="/dashboard" replace />;
+  if (isLegacyAdmin || (isEmployee && isAdmin)) return <Navigate to="/appraisal" replace />;
   return <Login />;
 }
 
@@ -61,9 +61,10 @@ function AppRoutes() {
       <Route path="/my-dashboard" element={<Navigate to="/hub?tab=dashboard" replace />} />
       <Route path="/wall-of-fame" element={<Navigate to="/hub?tab=rankings" replace />} />
       <Route path="/admin" element={<AdminGate />} />
-      <Route path="/dashboard" element={<ProtectedAdminRoute><Dashboard /></ProtectedAdminRoute>} />
+      <Route path="/dashboard" element={<Navigate to="/appraisal" replace />} />
       <Route path="/appraisal" element={<ProtectedAdminRoute><AppraisalAdmin /></ProtectedAdminRoute>} />
       <Route path="/demo" element={<DemoDashboard />} />
+      <Route path="/unsubscribe" element={<Unsubscribe />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
