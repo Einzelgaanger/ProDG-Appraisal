@@ -114,7 +114,10 @@ Deno.serve(async (req) => {
     )
   }
 
-  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  // Cast to any: newer @supabase/supabase-js types use stricter generic
+  // constraints that break ad-hoc inserts/RPC calls in this dispatcher.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase: any = createClient(supabaseUrl, supabaseServiceKey)
 
   // 1. Check rate-limit cooldown and read queue config
   const { data: state } = await supabase
