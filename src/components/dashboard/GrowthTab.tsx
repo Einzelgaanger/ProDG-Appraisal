@@ -77,6 +77,7 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
   const [growthInsight, setGrowthInsight] = useState<string | null>(null);
   const [growthInsightLoading, setGrowthInsightLoading] = useState(false);
   const [growthInsightError, setGrowthInsightError] = useState<string | null>(null);
+  const [growthInsightMeta, setGrowthInsightMeta] = useState<{ cached?: boolean; nextRefreshAt?: string; emailSent?: boolean } | null>(null);
 
   useEffect(() => {
     if (user && profile?.employee_id) loadGrowthData();
@@ -269,20 +270,20 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
     continueFeedback,
   ]);
 
-  const generateGrowthInsight = async () => {
+  const generateGrowthInsight = async (forceRefresh = false) => {
     const ctx = buildGrowthContextForAI();
     if (ctx.length < 20) return;
     setGrowthInsightLoading(true);
     setGrowthInsightError(null);
     try {
       const { data, error } = await supabase.functions.invoke('growth-insights', {
-        body: { growthContext: ctx },
+        body: { growthContext: ctx, forceRefresh },
       });
       if (error) {
         setGrowthInsightError(error.message);
         return;
       }
-      const payload = data as { insight?: string; error?: string } | null;
+      const payload = data as { insight?: string; error?: string; cached?: boolean; nextRefreshAt?: string; emailSent?: boolean } | null;
       if (payload?.error) {
         setGrowthInsightError(payload.error);
         return;
@@ -292,6 +293,7 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
         return;
       }
       setGrowthInsight(payload.insight);
+      setGrowthInsightMeta({ cached: payload.cached, nextRefreshAt: payload.nextRefreshAt, emailSent: payload.emailSent });
     } catch (e) {
       setGrowthInsightError(e instanceof Error ? e.message : 'Could not generate insights');
     } finally {
@@ -618,7 +620,7 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
               size="sm"
               className="shrink-0 font-bold uppercase text-[10px] tracking-wider"
               disabled={growthInsightLoading}
-              onClick={generateGrowthInsight}
+              onClick={() => generateGrowthInsight(Boolean(growthInsight))}
             >
               {growthInsightLoading ? (
                 <>
@@ -633,8 +635,14 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground border-l-2 border-foreground/15 pl-3 mb-3">
-            AI can misread nuance. Use this as a growth lens alongside your own judgment; suggested links are chosen for relevance to your current feedback pattern.
+            AI can misread nuance. Use this as a growth lens alongside your own judgment; suggested links refresh every 24 hours as feedback changes.
           </p>
+          {growthInsightMeta?.nextRefreshAt && (
+            <p className="text-[10px] text-muted-foreground border-l-2 border-accent/30 pl-3 mb-3">
+              {growthInsightMeta.cached ? 'Showing your latest saved resource list.' : 'Fresh resource list generated.'} Next refresh: {new Date(growthInsightMeta.nextRefreshAt).toLocaleString()}.
+              {growthInsightMeta.emailSent ? ' We also emailed you a reminder.' : ''}
+            </p>
+          )}
           {growthInsightError && (
             <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 p-3 mb-3">
               {growthInsightError}

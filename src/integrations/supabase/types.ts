@@ -376,6 +376,48 @@ export type Database = {
           },
         ]
       }
+      growth_insights: {
+        Row: {
+          context_hash: string
+          created_at: string
+          email_sent_at: string | null
+          employee_id: string
+          expires_at: string
+          generated_at: string
+          id: string
+          insight: string
+          resource_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          context_hash: string
+          created_at?: string
+          email_sent_at?: string | null
+          employee_id: string
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          insight: string
+          resource_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          context_hash?: string
+          created_at?: string
+          email_sent_at?: string | null
+          employee_id?: string
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          insight?: string
+          resource_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       manager_summaries: {
         Row: {
           avg_cultural_fit: number | null
