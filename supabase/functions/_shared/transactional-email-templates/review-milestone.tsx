@@ -75,7 +75,7 @@ export const template = {
     return `You've got ${n} new peer reviews on ProDG`
   },
   displayName: 'Review milestone notification',
-  previewData: { name: 'Jane Doe', reviewCount: 4 },
+  previewData: { name: 'Amina Okafor', reviewCount: 4 },
 } satisfies TemplateEntry
 
 const main = {
@@ -103,9 +103,9 @@ const tagline = {
 }
 const card = {
   backgroundColor: '#fafafa',
-  borderRadius: '12px',
+  borderRadius: '0',
   padding: '36px 28px',
-  border: '1px solid #e5e5e5',
+  border: '2px solid #0a0a0a',
 }
 const h1 = {
   fontSize: '22px',
@@ -126,7 +126,7 @@ const button = {
   color: '#ffffff',
   fontSize: '15px',
   fontWeight: '600' as const,
-  borderRadius: '8px',
+  borderRadius: '0',
   padding: '14px 28px',
   textDecoration: 'none',
   display: 'inline-block' as const,
