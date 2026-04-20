@@ -33,6 +33,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-background">
+      {/* Mobile header - improved touch targets */}
       <div className="lg:hidden border-b-2 border-foreground/10 px-4 py-4 flex items-center gap-3 bg-card/50 shrink-0">
         <img src={prodgLogo} alt="" className="h-9 w-9" />
         <div className="min-w-0">
@@ -40,6 +41,8 @@ export default function Login() {
           <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Admin console</p>
         </div>
       </div>
+      
+      {/* Desktop sidebar */}
       <div className="hidden lg:flex lg:w-[45%] bg-foreground relative overflow-hidden items-center justify-center p-12">
         <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.5) 39px, rgba(255,255,255,0.5) 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.5) 39px, rgba(255,255,255,0.5) 40px)',
@@ -55,9 +58,11 @@ export default function Login() {
         </div>
       </div>
 
-      <div className="flex-1 flex items-start sm:items-center justify-center p-4 sm:p-6 py-8">
+      {/* Main content - improved mobile spacing */}
+      <div className="flex-1 flex items-start sm:items-center justify-center p-4 sm:p-6 py-6 sm:py-8">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
-          <div className="mb-8">
+          {/* Desktop logo */}
+          <div className="hidden lg:block mb-8">
             <div className="flex items-center gap-2.5">
               <img src={prodgLogo} alt="ProDG" className="h-7 w-7" />
               <span className="text-2xl font-bold tracking-tight">ProDG</span>
@@ -68,19 +73,26 @@ export default function Login() {
             <p className="text-muted-foreground text-sm">ProDG 360° Review</p>
           </div>
 
+          {/* Mobile header text */}
+          <div className="lg:hidden mb-6">
+            <div className="label-mono mb-2 text-xs">// admin</div>
+            <h1 className="text-xl font-bold mb-1">Administrator</h1>
+            <p className="text-muted-foreground text-sm">ProDG 360° Review</p>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input id="email" type="email" placeholder="admin@prodg.studio" value={email} onChange={e => setEmail(e.target.value)} className="pl-10 h-11 border-2" required />
+                <Input id="email" type="email" placeholder="admin@prodg.studio" value={email} onChange={e => setEmail(e.target.value)} className="pl-10 h-12 border-2 text-base" required />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-medium">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input id="password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="pl-10 h-11 border-2" required />
+                <Input id="password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="pl-10 h-12 border-2 text-base" required />
               </div>
             </div>
 
@@ -90,7 +102,7 @@ export default function Login() {
               </motion.div>
             )}
 
-            <Button type="submit" disabled={loading} className="w-full h-11 font-bold uppercase tracking-wider text-xs">
+            <Button type="submit" disabled={loading} className="w-full h-12 font-bold uppercase tracking-wider text-xs sm:text-sm min-h-[48px]">
               {loading ? '...' : 'Sign In'}
             </Button>
           </form>
