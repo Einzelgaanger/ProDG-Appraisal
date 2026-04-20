@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useAuth } from '@/contexts/AuthContext';
+import { useEmployeeAuth } from '@/contexts/EmployeeAuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Lock, Mail, AlertCircle, ShieldCheck } from 'lucide-react';
 import prodgLogo from '@/assets/prodg-logo.png';
+import { supabase } from '@/lib/supabase';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, logout } = useEmployeeAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,9 +22,25 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      const success = await login(email, password);
-      if (success) navigate('/dashboard');
-      else setError('Invalid credentials.');
+      const { error } = await login(email, password);
+      if (error) {
+        setError(error);
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: role } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user?.id ?? '')
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (role) navigate('/appraisal');
+      else {
+        await logout();
+        setError('This account is not an admin.');
+      }
     } catch {
       setError('An error occurred.');
     } finally {
