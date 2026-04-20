@@ -12,20 +12,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import AIChatPanel from '@/components/dashboard/AIChatPanel';
 import VGGHeader from '@/components/VGGHeader';
 import {
-  BarChart3, Users, Building2, ClipboardCheck, ArrowLeft, RefreshCw,
+  BarChart3, Users, ClipboardCheck, ArrowLeft, RefreshCw,
   TrendingUp, Clock, ChevronDown, ChevronUp, Loader2, Zap, Search,
   Star, Target, Trophy, Activity, Brain, MessageSquare
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, Legend,
+  AreaChart, Area,
 } from 'recharts';
 
-interface ResponseRow { id: string; employee_id: string; subsidiary_id: string; created_at: string; }
+interface ResponseRow { id: string; employee_id: string; created_at: string; }
 interface AnswerRow { id: string; response_id: string; question_id: string; score: number | null; text_answer: string | null; }
-interface EmployeeRow { id: string; name: string; role: string | null; department: string | null; subsidiary_id: string; }
-interface SubsidiaryRow { id: string; name: string; }
+interface EmployeeRow { id: string; name: string; role: string | null; department: string | null; }
 interface CategoryRow { id: string; name: string; sort_order: number; }
 interface QuestionRow { id: string; category_id: string; question_text: string; question_type: string; sort_order: number; }
 interface ProfileRow { id: string; name: string; email: string; }
@@ -44,13 +43,11 @@ export default function AppraisalAdmin() {
   const [responses, setResponses] = useState<ResponseRow[]>([]);
   const [answers, setAnswers] = useState<AnswerRow[]>([]);
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
-  const [subsidiaries, setSubsidiaries] = useState<SubsidiaryRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [appFeedback, setAppFeedback] = useState<AppFeedbackRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSubsidiary, setSelectedSubsidiary] = useState<string>('all');
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
   const [expandedResponse, setExpandedResponse] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -77,11 +74,10 @@ export default function AppraisalAdmin() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const [resRes, ansRes, empRes, subRes, catRes, qRes] = await Promise.all([
+      const [resRes, ansRes, empRes, catRes, qRes] = await Promise.all([
         supabase.from('survey_responses').select('*').order('created_at', { ascending: false }),
         supabase.from('survey_answers').select('*'),
         supabase.from('employees').select('*').order('name'),
-        supabase.from('subsidiaries').select('*').order('name'),
         supabase.from('survey_categories').select('*').order('sort_order'),
         supabase.from('survey_questions').select('*').order('sort_order'),
       ]);
@@ -92,7 +88,6 @@ export default function AppraisalAdmin() {
       if (resRes.data) setResponses(resRes.data);
       if (ansRes.data) setAnswers(ansRes.data);
       if (empRes.data) setEmployees(empRes.data);
-      if (subRes.data) setSubsidiaries(subRes.data);
       if (catRes.data) setCategories(catRes.data);
       if (qRes.data) setQuestions(qRes.data);
       if (profileRes.data) setProfiles(profileRes.data as ProfileRow[]);
@@ -102,7 +97,6 @@ export default function AppraisalAdmin() {
   };
 
   const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.name || 'Unknown';
-  const getSubsidiaryName = (id: string) => subsidiaries.find(s => s.id === id)?.name || 'Unknown';
   const getQuestionText = (id: string) => questions.find(q => q.id === id)?.question_text || '';
   const getFeedbackAuthor = (userId: string) => profiles.find(p => p.id === userId);
   const updateFeedbackStatus = async (id: string, status: string) => {
@@ -112,10 +106,9 @@ export default function AppraisalAdmin() {
 
   const filteredResponses = useMemo(() => {
     let filtered = responses;
-    if (selectedSubsidiary !== 'all') filtered = filtered.filter(r => r.subsidiary_id === selectedSubsidiary);
     if (selectedEmployee) filtered = filtered.filter(r => r.employee_id === selectedEmployee);
     return filtered;
-  }, [responses, selectedSubsidiary, selectedEmployee]);
+  }, [responses, selectedEmployee]);
 
   const filteredResponseIds = useMemo(() => new Set(filteredResponses.map(r => r.id)), [filteredResponses]);
   const filteredAnswers = useMemo(() => answers.filter(a => filteredResponseIds.has(a.response_id)), [answers, filteredResponseIds]);
@@ -131,16 +124,6 @@ export default function AppraisalAdmin() {
     return scored.reduce((sum, a) => sum + (a.score || 0), 0) / scored.length;
   }, [filteredAnswers]);
 
-  // Subsidiary breakdown
-  const subsidiaryBreakdown = useMemo(() => {
-    const counts: Record<string, number> = {};
-    filteredResponses.forEach(r => {
-      const name = getSubsidiaryName(r.subsidiary_id);
-      counts[name] = (counts[name] || 0) + 1;
-    });
-    return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
-  }, [filteredResponses, subsidiaries]);
-
   // Category averages
   const categoryAverages = useMemo(() => {
     const scoredCategories = categories.filter(c => c.sort_order < 8);
@@ -154,14 +137,13 @@ export default function AppraisalAdmin() {
 
   // Top employees
   const employeeLeaderboard = useMemo(() => {
-    const counts: Record<string, { name: string; role: string; department: string; subsidiary: string; count: number; avgScore: number }> = {};
+    const counts: Record<string, { name: string; role: string; department: string; count: number; avgScore: number }> = {};
     filteredResponses.forEach(r => {
       const emp = employees.find(e => e.id === r.employee_id);
       if (!emp) return;
       if (!counts[r.employee_id]) {
         counts[r.employee_id] = {
-          name: emp.name, role: emp.role || '', department: emp.department || '',
-          subsidiary: getSubsidiaryName(emp.subsidiary_id), count: 0, avgScore: 0,
+          name: emp.name, role: emp.role || '', department: emp.department || 'Unassigned', count: 0, avgScore: 0,
         };
       }
       counts[r.employee_id].count++;
@@ -228,11 +210,10 @@ export default function AppraisalAdmin() {
   const dataContext = useMemo(() => {
     if (!responses.length) return '';
     const topEmployees = employeeLeaderboard.slice(0, 20).map(e =>
-      `• ${e.name} (${e.subsidiary}${e.department ? ', ' + e.department : ''}): Score ${e.avgScore}/5, ${e.count} reviews`
+      `• ${e.name} (${e.department || 'Unassigned'}): Score ${e.avgScore}/5, ${e.count} reviews`
     ).join('\n');
 
     const catData = categoryAverages.map(c => `• ${c.fullName}: ${c.avg}/5`).join('\n');
-    const subData = subsidiaryBreakdown.map(s => `• ${s.name}: ${s.count} responses`).join('\n');
     const deptData = departmentBreakdown.map(d => `• ${d.department}: ${d.responses} responses, avg ${d.avgScore}/5`).join('\n');
 
     // Get open-ended feedback
@@ -245,8 +226,8 @@ export default function AppraisalAdmin() {
     return `=== ProDG 360° REVIEW ANALYTICS ===
 
 SUMMARY:
-• Total Responses: ${totalResponses}
-• People Reviewed: ${uniqueReviewees} of ${totalEmployees} employees
+• Submitted Reviews: ${totalResponses}
+• Teammates Reviewed: ${uniqueReviewees} of ${totalEmployees} teammates
 • Participation Rate: ${participationRate}%
 • Organisation Average Score: ${avgOverallScore.toFixed(2)}/5.0
 
@@ -256,20 +237,14 @@ ${catData}
 TOP PERFORMERS:
 ${topEmployees}
 
-RESPONSES BY SUBSIDIARY:
-${subData}
-
 RESPONSES BY DEPARTMENT:
 ${deptData}
 
 SAMPLE QUALITATIVE FEEDBACK:
 ${feedbackSample || '• No text feedback yet'}`;
-  }, [responses, employeeLeaderboard, categoryAverages, subsidiaryBreakdown, departmentBreakdown, answers]);
+  }, [responses, employeeLeaderboard, categoryAverages, departmentBreakdown, answers]);
 
-  const filteredEmployees = useMemo(() => {
-    if (selectedSubsidiary === 'all') return employees;
-    return employees.filter(e => e.subsidiary_id === selectedSubsidiary);
-  }, [employees, selectedSubsidiary]);
+  const filteredEmployees = employees;
 
   const getResponseAnswers = (responseId: string) => answers.filter(a => a.response_id === responseId);
 
@@ -318,23 +293,13 @@ ${feedbackSample || '• No text feedback yet'}`;
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* Filters */}
         <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-start sm:items-center">
-          <Select value={selectedSubsidiary} onValueChange={v => { setSelectedSubsidiary(v); setSelectedEmployee(null); }}>
-            <SelectTrigger className="w-full sm:w-[200px] bg-secondary/50">
-              <Building2 className="w-4 h-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder="All Subsidiaries" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Subsidiaries</SelectItem>
-              {subsidiaries.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
           <Select value={selectedEmployee || 'all'} onValueChange={v => setSelectedEmployee(v === 'all' ? null : v)}>
-            <SelectTrigger className="w-full sm:w-[220px] bg-secondary/50">
+            <SelectTrigger className="w-full sm:w-[240px] bg-secondary/50">
               <Users className="w-4 h-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder="All Employees" />
+              <SelectValue placeholder="All Teammates" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Employees</SelectItem>
+              <SelectItem value="all">All Teammates</SelectItem>
               {filteredEmployees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -343,8 +308,8 @@ ${feedbackSample || '• No text feedback yet'}`;
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            { label: 'Total Responses', value: totalResponses, icon: ClipboardCheck, color: 'bg-primary/10 text-primary' },
-            { label: 'People Reviewed', value: uniqueReviewees, icon: Users, color: 'bg-accent/10 text-accent' },
+            { label: 'Submitted Reviews', value: totalResponses, icon: ClipboardCheck, color: 'bg-primary/10 text-primary' },
+            { label: 'Teammates Reviewed', value: uniqueReviewees, icon: Users, color: 'bg-accent/10 text-accent' },
             { label: 'Total Employees', value: totalEmployees, icon: Target, color: 'bg-muted text-foreground' },
             { label: 'Participation', value: `${participationRate}%`, icon: Activity, color: 'bg-success/10 text-success' },
             { label: 'Avg Score', value: `${avgOverallScore.toFixed(2)}/5`, icon: TrendingUp, color: 'bg-primary/10 text-primary' },
@@ -380,22 +345,7 @@ ${feedbackSample || '• No text feedback yet'}`;
 
             {/* ===== OVERVIEW TAB ===== */}
             <TabsContent value="overview" className="mt-4 space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Subsidiary pie */}
-                <div className="glass-panel p-5">
-                  <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-primary" /> Responses by Subsidiary
-                  </h3>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <PieChart>
-                      <Pie data={subsidiaryBreakdown} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({ name, count }) => `${name}: ${count}`} labelLine>
-                        {subsidiaryBreakdown.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                      </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
+              <div className="grid gap-6">
                 {/* Category radar */}
                 <div className="glass-panel p-5">
                   <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
@@ -466,7 +416,7 @@ ${feedbackSample || '• No text feedback yet'}`;
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="font-medium text-sm truncate">{i + 1}. {emp.name}</p>
-                          <p className="text-[11px] text-muted-foreground truncate">{emp.department || 'Unassigned'} - {emp.subsidiary}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">{emp.department || 'Unassigned'}</p>
                         </div>
                         <Badge variant="secondary" className="text-[10px] shrink-0">{emp.count} reviews</Badge>
                       </div>
@@ -488,7 +438,6 @@ ${feedbackSample || '• No text feedback yet'}`;
                         <th className="text-left py-2 px-3 text-muted-foreground font-medium text-xs">#</th>
                         <th className="text-left py-2 px-3 text-muted-foreground font-medium text-xs">Name</th>
                         <th className="text-left py-2 px-3 text-muted-foreground font-medium text-xs">Department</th>
-                        <th className="text-left py-2 px-3 text-muted-foreground font-medium text-xs">Subsidiary</th>
                         <th className="text-center py-2 px-3 text-muted-foreground font-medium text-xs">Reviews</th>
                         <th className="text-center py-2 px-3 text-muted-foreground font-medium text-xs">Avg Score</th>
                       </tr>
@@ -518,7 +467,6 @@ ${feedbackSample || '• No text feedback yet'}`;
                             </div>
                           </td>
                           <td className="py-2.5 px-3 text-muted-foreground text-xs">{emp.department || '—'}</td>
-                          <td className="py-2.5 px-3 text-muted-foreground text-xs">{emp.subsidiary}</td>
                           <td className="py-2.5 px-3 text-center">
                             <Badge variant="secondary" className="text-[10px]">{emp.count}</Badge>
                           </td>
@@ -555,21 +503,7 @@ ${feedbackSample || '• No text feedback yet'}`;
                 </ResponsiveContainer>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Subsidiary comparison bar */}
-                <div className="glass-panel p-5">
-                  <h3 className="text-sm font-semibold mb-4">Subsidiary Response Volume</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={subsidiaryBreakdown.slice(0, 10)} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                      <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                      <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
-                      <Bar dataKey="count" fill="hsl(var(--accent))" radius={[0, 6, 6, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
+              <div className="grid gap-6">
                 {/* Category comparison detailed */}
                 <div className="glass-panel p-5">
                   <h3 className="text-sm font-semibold mb-4">Category Score Breakdown</h3>
@@ -615,7 +549,6 @@ ${feedbackSample || '• No text feedback yet'}`;
                             <div className="w-2 h-2 rounded-full bg-primary" />
                             <div>
                               <span className="font-medium text-sm">{getEmployeeName(r.employee_id)}</span>
-                              <span className="text-muted-foreground text-xs ml-2">{getSubsidiaryName(r.subsidiary_id)}</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
