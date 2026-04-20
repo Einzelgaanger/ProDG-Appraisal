@@ -31,10 +31,13 @@ Output exactly these sections in order:
 **Strengths peers want you to keep**
 2–4 bullets: based on KEEP DOING and higher-scored areas.
 
+**Personal resource suggestions**
+3–5 highly relevant public resources to help this exact person grow. Use a mix of articles, practical guides, talks, research, or reputable publications. For each: title, link, and one brief sentence explaining why it fits their score pattern or feedback theme. Only include real public links you are confident exist; avoid generic homepages.
+
 **One sentence takeaway**
 A single honest line summarizing the growth edge for this person.
 
-Keep total output under 450 words.`;
+Keep total output under 650 words.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
