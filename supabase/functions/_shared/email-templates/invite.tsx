@@ -10,10 +10,13 @@ import {
   Heading,
   Hr,
   Html,
+  Img,
   Preview,
   Section,
   Text,
 } from 'npm:@react-email/components@0.0.22'
+
+const LOGO_URL = 'https://sfwltphcerfsfyrtiwwk.supabase.co/storage/v1/object/public/email-assets/prodg-logo.png'
 
 interface InviteEmailProps {
   siteName: string
@@ -32,6 +35,7 @@ export const InviteEmail = ({
     <Body style={main}>
       <Container style={outerContainer}>
         <Section style={headerSection}>
+          <Img src={LOGO_URL} width="44" height="44" alt="ProDG" style={logoImg} />
           <Text style={logoText}>ProDG</Text>
         </Section>
         <Section style={contentSection}>
@@ -62,12 +66,13 @@ export default InviteEmail
 const main = { backgroundColor: '#f5f5f5', fontFamily: "'Plus Jakarta Sans', Arial, sans-serif" }
 const outerContainer = { maxWidth: '560px', margin: '0 auto', padding: '40px 20px' }
 const headerSection = { textAlign: 'center' as const, padding: '0 0 24px' }
+const logoImg = { margin: '0 auto 8px', display: 'block' as const }
 const logoText = { fontSize: '28px', fontWeight: '800' as const, color: '#171717', letterSpacing: '-0.02em', margin: '0' }
-const contentSection = { backgroundColor: '#ffffff', borderRadius: '12px', padding: '40px 32px', border: '1px solid #e5e5e5' }
+const contentSection = { backgroundColor: '#ffffff', borderRadius: '0', padding: '40px 32px', border: '2px solid #171717' }
 const h1 = { fontSize: '24px', fontWeight: '700' as const, color: '#171717', margin: '0 0 16px', lineHeight: '1.3' }
 const text = { fontSize: '15px', color: '#525252', lineHeight: '1.6', margin: '0 0 24px' }
 const buttonContainer = { textAlign: 'center' as const, margin: '8px 0 24px' }
-const button = { backgroundColor: '#171717', color: '#ffffff', fontSize: '15px', fontWeight: '600' as const, borderRadius: '10px', padding: '14px 32px', textDecoration: 'none' }
+const button = { backgroundColor: '#171717', color: '#ffffff', fontSize: '15px', fontWeight: '600' as const, borderRadius: '0', padding: '14px 32px', textDecoration: 'none' }
 const subtext = { fontSize: '12px', color: '#a3a3a3', lineHeight: '1.5', margin: '0 0 4px' }
 const urlText = { fontSize: '11px', color: '#171717', wordBreak: 'break-all' as const, margin: '0' }
 const hr = { borderColor: '#e5e5e5', margin: '24px 0 16px' }

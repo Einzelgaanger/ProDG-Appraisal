@@ -146,7 +146,7 @@ export default function FindAccount() {
           <Label htmlFor="search" className="text-sm font-medium">Name or Email</Label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input id="search" placeholder="e.g. Jane Doe" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 h-11 border-2" autoFocus />
+            <Input id="search" placeholder="e.g. Amina Okafor" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 h-11 border-2" autoFocus />
             {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />}
           </div>
         </div>

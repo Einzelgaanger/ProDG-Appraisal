@@ -16,7 +16,7 @@ import {
   Text,
 } from 'npm:@react-email/components@0.0.22'
 
-const LOGO_URL = 'https://appraisal.prodg.studio/favicon.png'
+const LOGO_URL = 'https://sfwltphcerfsfyrtiwwk.supabase.co/storage/v1/object/public/email-assets/prodg-logo.png'
 
 interface RecoveryEmailProps {
   siteName: string
@@ -108,9 +108,9 @@ const tagline = {
 }
 const card = {
   backgroundColor: '#fafafa',
-  borderRadius: '12px',
+  borderRadius: '0',
   padding: '36px 28px',
-  border: '1px solid #e5e5e5',
+  border: '2px solid #171717',
 }
 const h1 = {
   fontSize: '22px',
@@ -131,7 +131,7 @@ const button = {
   color: '#ffffff',
   fontSize: '15px',
   fontWeight: '600' as const,
-  borderRadius: '8px',
+  borderRadius: '0',
   padding: '14px 28px',
   textDecoration: 'none',
   display: 'inline-block' as const,
@@ -156,8 +156,8 @@ const linkBox = {
   margin: '0',
   padding: '12px',
   backgroundColor: '#ffffff',
-  borderRadius: '6px',
-  border: '1px solid #eee',
+  borderRadius: '0',
+  border: '2px solid #171717',
 }
 const hr = { borderColor: '#e5e5e5', margin: '28px 0 16px' }
 const footer = {
