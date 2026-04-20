@@ -22,9 +22,9 @@ import {
   AreaChart, Area,
 } from 'recharts';
 
-interface ResponseRow { id: string; employee_id: string; subsidiary_id: string; created_at: string; }
+interface ResponseRow { id: string; employee_id: string; created_at: string; }
 interface AnswerRow { id: string; response_id: string; question_id: string; score: number | null; text_answer: string | null; }
-interface EmployeeRow { id: string; name: string; role: string | null; department: string | null; subsidiary_id: string; }
+interface EmployeeRow { id: string; name: string; role: string | null; department: string | null; }
 interface CategoryRow { id: string; name: string; sort_order: number; }
 interface QuestionRow { id: string; category_id: string; question_text: string; question_type: string; sort_order: number; }
 interface ProfileRow { id: string; name: string; email: string; }
@@ -226,8 +226,8 @@ export default function AppraisalAdmin() {
     return `=== ProDG 360° REVIEW ANALYTICS ===
 
 SUMMARY:
-• Total Responses: ${totalResponses}
-• People Reviewed: ${uniqueReviewees} of ${totalEmployees} employees
+• Submitted Reviews: ${totalResponses}
+• Teammates Reviewed: ${uniqueReviewees} of ${totalEmployees} teammates
 • Participation Rate: ${participationRate}%
 • Organisation Average Score: ${avgOverallScore.toFixed(2)}/5.0
 
@@ -549,7 +549,6 @@ ${feedbackSample || '• No text feedback yet'}`;
                             <div className="w-2 h-2 rounded-full bg-primary" />
                             <div>
                               <span className="font-medium text-sm">{getEmployeeName(r.employee_id)}</span>
-                              <span className="text-muted-foreground text-xs ml-2">{getSubsidiaryName(r.subsidiary_id)}</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
