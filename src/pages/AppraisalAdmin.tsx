@@ -14,7 +14,7 @@ import VGGHeader from '@/components/VGGHeader';
 import {
   BarChart3, Users, Building2, ClipboardCheck, ArrowLeft, RefreshCw,
   TrendingUp, Clock, ChevronDown, ChevronUp, Loader2, Zap, Search,
-  Star, Target, Trophy, Activity, Brain
+  Star, Target, Trophy, Activity, Brain, MessageSquare
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -28,6 +28,8 @@ interface EmployeeRow { id: string; name: string; role: string | null; departmen
 interface SubsidiaryRow { id: string; name: string; }
 interface CategoryRow { id: string; name: string; sort_order: number; }
 interface QuestionRow { id: string; category_id: string; question_text: string; question_type: string; sort_order: number; }
+interface ProfileRow { id: string; name: string; email: string; }
+interface AppFeedbackRow { id: string; user_id: string; message: string; page: string | null; status: string; created_at: string; }
 
 const CHART_COLORS = [
   'hsl(0, 0%, 15%)', 'hsl(0, 0%, 35%)', 'hsl(0, 0%, 55%)',
@@ -45,6 +47,8 @@ export default function AppraisalAdmin() {
   const [subsidiaries, setSubsidiaries] = useState<SubsidiaryRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
+  const [profiles, setProfiles] = useState<ProfileRow[]>([]);
+  const [appFeedback, setAppFeedback] = useState<AppFeedbackRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubsidiary, setSelectedSubsidiary] = useState<string>('all');
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
@@ -63,6 +67,9 @@ export default function AppraisalAdmin() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'survey_answers' }, (payload) => {
         setAnswers(prev => [...prev, payload.new as AnswerRow]);
       })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'app_feedback' }, (payload) => {
+        setAppFeedback(prev => [payload.new as AppFeedbackRow, ...prev]);
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
@@ -78,12 +85,18 @@ export default function AppraisalAdmin() {
         supabase.from('survey_categories').select('*').order('sort_order'),
         supabase.from('survey_questions').select('*').order('sort_order'),
       ]);
+      const [profileRes, feedbackRes] = await Promise.all([
+        supabase.from('profiles').select('id, name, email'),
+        (supabase as any).from('app_feedback').select('*').order('created_at', { ascending: false }).limit(500),
+      ]);
       if (resRes.data) setResponses(resRes.data);
       if (ansRes.data) setAnswers(ansRes.data);
       if (empRes.data) setEmployees(empRes.data);
       if (subRes.data) setSubsidiaries(subRes.data);
       if (catRes.data) setCategories(catRes.data);
       if (qRes.data) setQuestions(qRes.data);
+      if (profileRes.data) setProfiles(profileRes.data as ProfileRow[]);
+      if (feedbackRes.data) setAppFeedback(feedbackRes.data as AppFeedbackRow[]);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -91,6 +104,11 @@ export default function AppraisalAdmin() {
   const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.name || 'Unknown';
   const getSubsidiaryName = (id: string) => subsidiaries.find(s => s.id === id)?.name || 'Unknown';
   const getQuestionText = (id: string) => questions.find(q => q.id === id)?.question_text || '';
+  const getFeedbackAuthor = (userId: string) => profiles.find(p => p.id === userId);
+  const updateFeedbackStatus = async (id: string, status: string) => {
+    const { error } = await (supabase as any).from('app_feedback').update({ status }).eq('id', id);
+    if (!error) setAppFeedback(prev => prev.map(item => item.id === id ? { ...item, status } : item));
+  };
 
   const filteredResponses = useMemo(() => {
     let filtered = responses;
@@ -352,11 +370,12 @@ ${feedbackSample || '• No text feedback yet'}`;
           </div>
         ) : (
           <Tabs value={adminTab} onValueChange={setAdminTab}>
-            <TabsList className="grid w-full grid-cols-4 h-auto min-h-10">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto min-h-10">
               <TabsTrigger value="overview" className="text-[11px] sm:text-xs gap-1 px-1.5 sm:px-3"><BarChart3 className="w-3 h-3" /> Overview</TabsTrigger>
               <TabsTrigger value="people" className="text-[11px] sm:text-xs gap-1 px-1.5 sm:px-3"><Users className="w-3 h-3" /> People</TabsTrigger>
               <TabsTrigger value="trends" className="text-[11px] sm:text-xs gap-1 px-1.5 sm:px-3"><TrendingUp className="w-3 h-3" /> Trends</TabsTrigger>
               <TabsTrigger value="feed" className="text-[11px] sm:text-xs gap-1 px-1.5 sm:px-3"><Clock className="w-3 h-3" /> Live Feed</TabsTrigger>
+              <TabsTrigger value="feedback" className="text-[11px] sm:text-xs gap-1 px-1.5 sm:px-3"><MessageSquare className="w-3 h-3" /> Feedback</TabsTrigger>
             </TabsList>
 
             {/* ===== OVERVIEW TAB ===== */}
@@ -641,6 +660,61 @@ ${feedbackSample || '• No text feedback yet'}`;
                     );
                   })}
                 </div>
+              </div>
+            </TabsContent>
+
+            {/* ===== APP FEEDBACK TAB ===== */}
+            <TabsContent value="feedback" className="mt-4">
+              <div className="glass-panel p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                  <div>
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-primary" /> Product Feedback
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">Suggestions from employees about the survey and overall experience.</p>
+                  </div>
+                  <Badge variant="secondary" className="w-fit text-[10px]">{appFeedback.length} items</Badge>
+                </div>
+
+                {appFeedback.length === 0 ? (
+                  <div className="border-2 border-dashed border-foreground/10 p-8 text-center">
+                    <p className="text-sm font-bold">No app feedback yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">When users send suggestions, they will appear here.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1 scrollbar-thin">
+                    {appFeedback.map(item => {
+                      const author = getFeedbackAuthor(item.user_id);
+                      return (
+                        <div key={item.id} className="border-2 border-foreground/10 bg-background p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-bold">{author?.name || 'Employee'}</span>
+                                <Badge variant={item.status === 'new' ? 'default' : 'secondary'} className="text-[9px] uppercase">{item.status}</Badge>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground truncate">
+                                {author?.email || item.user_id} · {item.page || 'hub'} · {new Date(item.created_at).toLocaleString()}
+                              </p>
+                            </div>
+                            <Select value={item.status} onValueChange={value => updateFeedbackStatus(item.id, value)}>
+                              <SelectTrigger className="h-8 w-full sm:w-36 border-2 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="new">New</SelectItem>
+                                <SelectItem value="reviewed">Reviewed</SelectItem>
+                                <SelectItem value="planned">Planned</SelectItem>
+                                <SelectItem value="closed">Closed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{item.message}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
