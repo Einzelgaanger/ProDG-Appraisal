@@ -37,13 +37,13 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      setIsLoading(false);
+      if (!session?.user) setIsLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      setIsLoading(false);
+      if (!session?.user) setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -52,20 +52,24 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
   // Fetch profile and admin role when user changes
   useEffect(() => {
     if (user) {
-      supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle()
-        .then(({ data }) => setProfile(data as Profile | null));
-      
-      supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .maybeSingle()
-        .then(({ data }) => setIsAdmin(!!data));
+      setIsLoading(true);
+
+      Promise.all([
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('role', 'admin')
+          .maybeSingle(),
+      ]).then(([profileResult, roleResult]) => {
+        setProfile(profileResult.data as Profile | null);
+        setIsAdmin(!!roleResult.data);
+      }).finally(() => setIsLoading(false));
     } else {
       setProfile(null);
       setIsAdmin(false);
