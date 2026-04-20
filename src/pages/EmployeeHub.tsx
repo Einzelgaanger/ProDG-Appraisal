@@ -13,6 +13,7 @@ import {
   BarChart3, Users, Search, X, Lock, Plus, Minus, ClipboardList,
 } from 'lucide-react';
 import GrowthTab from '@/components/dashboard/GrowthTab';
+import AppFeedbackDialog from '@/components/AppFeedbackDialog';
 import { toast } from 'sonner';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer,
@@ -208,6 +209,7 @@ export default function EmployeeHub() {
             >
               <Lock className="w-3 h-3" /> Anonymous
             </div>
+            <AppFeedbackDialog userId={user?.id} page={activeTab} />
           </>
         }
       />
@@ -248,7 +250,7 @@ export default function EmployeeHub() {
                     </div>
                     <div className="relative mb-4">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input placeholder="Search by name or email..." value={poolSearch} onChange={e => setPoolSearch(e.target.value)} className="pl-10 h-10 border-2" />
+                      <Input placeholder="e.g. Amina, Chinedu, Kwame..." value={poolSearch} onChange={e => setPoolSearch(e.target.value)} className="pl-10 h-10 border-2" />
                       {poolSearch && (
                         <button onClick={() => setPoolSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="w-4 h-4 text-muted-foreground" /></button>
                       )}
