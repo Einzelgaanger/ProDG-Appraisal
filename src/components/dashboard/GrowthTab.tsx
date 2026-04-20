@@ -29,6 +29,20 @@ interface GrowthTabProps {
 
 const pageT = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.15 } };
 
+function renderInlineInsight(part: string, keyPrefix: string) {
+  const urlParts = part.split(/(https?:\/\/[^\s)]+)/g);
+  return urlParts.map((piece, i) => {
+    if (/^https?:\/\//.test(piece)) {
+      return (
+        <a key={`${keyPrefix}-url-${i}`} href={piece} target="_blank" rel="noreferrer" className="font-semibold text-accent underline underline-offset-2 break-all">
+          {piece.replace(/^https?:\/\//, '')}
+        </a>
+      );
+    }
+    return <span key={`${keyPrefix}-txt-${i}`}>{piece}</span>;
+  });
+}
+
 function renderInsightMarkdown(text: string) {
   const lines = text.split('\n');
   return lines.map((line, lineIdx) => {
@@ -39,7 +53,7 @@ function renderInsightMarkdown(text: string) {
         {boldParts.map((part, i) => {
           const m = part.match(/^\*\*(.+)\*\*$/);
           if (m) return <strong key={i} className="font-semibold text-foreground">{m[1]}</strong>;
-          return <span key={i}>{part}</span>;
+          return renderInlineInsight(part, `${lineIdx}-${i}`);
         })}
       </p>
     );
@@ -594,7 +608,7 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
                   <Sparkles className="w-4 h-4 text-accent" />
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-                  Synthesises your scores and anonymous comments into themes and next steps. You stay in control — generate when you are ready.
+                  Connects your scores and anonymous comments to specific growth actions plus carefully chosen public articles, guides, or talks that match your profile.
                 </p>
               </div>
             </div>
@@ -619,14 +633,13 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground border-l-2 border-foreground/15 pl-3 mb-3">
-            AI can misread nuance. Use this as a lens alongside your own judgment and the raw quotes above — not as a verdict.
+            AI can misread nuance. Use this as a growth lens alongside your own judgment; suggested links are chosen for relevance to your current feedback pattern.
           </p>
           {growthInsightError && (
             <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 p-3 mb-3">
               {growthInsightError}
               <p className="text-[10px] text-muted-foreground mt-2 font-normal">
-                If this persists, ensure the <code className="mono text-[10px]">growth-insights</code> function is deployed and{' '}
-                <code className="mono text-[10px]">LOVABLE_API_KEY</code> is set in Supabase Edge Function secrets.
+                Please try again in a moment.
               </p>
             </div>
           )}

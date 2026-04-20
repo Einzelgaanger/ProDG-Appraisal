@@ -359,7 +359,7 @@ ${feedbackSample || '• No text feedback yet'}`;
           ))}
         </div>
 
-        {totalResponses === 0 ? (
+        {false ? (
           <div className="glass-panel p-12 text-center">
             <ClipboardCheck className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Responses Yet</h3>
