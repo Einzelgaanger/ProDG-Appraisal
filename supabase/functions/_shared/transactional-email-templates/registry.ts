@@ -10,7 +10,9 @@ export interface TemplateEntry {
 }
 
 import { template as reviewMilestone } from './review-milestone.tsx'
+import { template as growthInsightReady } from './growth-insight-ready.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'review-milestone': reviewMilestone,
+  'growth-insight-ready': growthInsightReady,
 }
