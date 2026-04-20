@@ -8,6 +8,23 @@ const corsHeaders = {
 };
 
 const MAX_CONTEXT_CHARS = 24_000;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+async function sha256(input: string) {
+  const data = new TextEncoder().encode(input);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function countLinks(text: string) {
+  return (text.match(/https?:\/\/[^\s)]+/g) || []).length;
+}
+
+function extractFocusArea(text: string) {
+  const match = text.match(/\*\*Where to focus next\*\*([\s\S]*?)(\*\*Strengths peers want you to keep\*\*|$)/i);
+  const firstBullet = match?.[1]?.split('\n').find((line) => line.trim().startsWith('-') || line.trim().startsWith('•'));
+  return firstBullet?.replace(/^[-•]\s*/, '').slice(0, 180) || 'your current growth priorities';
+}
 
 const SYSTEM_PROMPT = `You are a concise, supportive workplace coach for ProDG 360° peer review.
 
@@ -18,6 +35,9 @@ Rules (mandatory):
 - Do not claim to know who said what; everything is anonymous.
 - Use short sections with **bold** mini-headings.
 - Tone: growth-oriented, direct, no corporate fluff.
+- Resource suggestions must be specific to this person's lowest scores, STOP/START themes, and strengths to maintain.
+- Prioritize widely respected, practical, current or evergreen resources from credible sources such as Harvard Business Review, Google re:Work, Atlassian, McKinsey, First Round Review, MIT Sloan, Stanford, TED, Center for Creative Leadership, or well-known engineering/product leadership publications.
+- Prefer latest/recent resources when confidently known; otherwise choose established popular resources that remain useful.
 - If a section has no usable text, say "Not enough written feedback in this area yet" for that part.
 
 Output exactly these sections in order:
@@ -32,7 +52,7 @@ Output exactly these sections in order:
 2–4 bullets: based on KEEP DOING and higher-scored areas.
 
 **Personal resource suggestions**
-3–5 highly relevant public resources to help this exact person grow. Use a mix of articles, practical guides, talks, research, or reputable publications. For each: title, link, and one brief sentence explaining why it fits their score pattern or feedback theme. Only include real public links you are confident exist; avoid generic homepages.
+4–6 highly relevant public resources to help this exact person grow. Use a mix of articles, practical guides, talks, research, or reputable publications. For each: title, link, and one brief sentence explaining why it fits their score pattern or feedback theme. Only include real public links you are confident exist; avoid generic homepages.
 
 **One sentence takeaway**
 A single honest line summarizing the growth edge for this person.
@@ -79,6 +99,11 @@ Deno.serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const serviceClient = supabaseServiceKey
+      ? createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false, autoRefreshToken: false } })
+      : null;
+
     const {
       data: { user },
       error: userErr,
@@ -93,6 +118,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const growthContext =
       typeof body?.growthContext === "string" ? body.growthContext.trim() : "";
+    const forceRefresh = body?.forceRefresh === true;
     if (!growthContext || growthContext.length < 20) {
       return new Response(
         JSON.stringify({ error: "growthContext is required (min 20 characters)" }),
@@ -104,6 +130,39 @@ Deno.serve(async (req) => {
     }
 
     const clipped = growthContext.slice(0, MAX_CONTEXT_CHARS);
+    const contextHash = await sha256(clipped);
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("name, email, employee_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (serviceClient && !forceRefresh) {
+      const { data: cached } = await serviceClient
+        .from("growth_insights")
+        .select("id, insight, generated_at, expires_at, resource_count, email_sent_at")
+        .eq("user_id", user.id)
+        .eq("context_hash", contextHash)
+        .gt("expires_at", new Date().toISOString())
+        .order("generated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cached?.insight) {
+        return new Response(JSON.stringify({
+          insight: cached.insight,
+          cached: true,
+          generatedAt: cached.generated_at,
+          nextRefreshAt: cached.expires_at,
+          resourceCount: cached.resource_count,
+          emailSent: Boolean(cached.email_sent_at),
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(
@@ -135,8 +194,8 @@ Deno.serve(async (req) => {
             },
           ],
           stream: false,
-          max_tokens: 1200,
-          temperature: 0.35,
+          max_tokens: 1600,
+          temperature: 0.45,
         }),
       }
     );
@@ -170,7 +229,61 @@ Deno.serve(async (req) => {
       );
     }
 
-    return new Response(JSON.stringify({ insight }), {
+    const resourceCount = countLinks(insight);
+    const expiresAt = new Date(Date.now() + ONE_DAY_MS).toISOString();
+    let emailSent = false;
+
+    if (serviceClient && profile?.employee_id) {
+      const { data: inserted, error: insertError } = await serviceClient
+        .from("growth_insights")
+        .insert({
+          user_id: user.id,
+          employee_id: profile.employee_id,
+          insight,
+          context_hash: contextHash,
+          resource_count: resourceCount,
+          expires_at: expiresAt,
+        })
+        .select("id, generated_at")
+        .single();
+
+      if (insertError) {
+        console.error("Could not save growth insight", insertError);
+      } else if (inserted && (profile.email || user.email)) {
+        try {
+          const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${supabaseAnonKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              templateName: "growth-insight-ready",
+              recipientEmail: profile.email || user.email,
+              idempotencyKey: `growth-insight-${inserted.id}`,
+              templateData: {
+                name: profile.name || user.email?.split("@")[0] || "there",
+                resourceCount,
+                focusArea: extractFocusArea(insight),
+              },
+            }),
+          });
+          emailSent = emailRes.ok;
+          if (emailSent) {
+            await serviceClient
+              .from("growth_insights")
+              .update({ email_sent_at: new Date().toISOString() })
+              .eq("id", inserted.id);
+          } else {
+            console.error("Growth insight email enqueue failed", emailRes.status, await emailRes.text());
+          }
+        } catch (emailError) {
+          console.error("Growth insight email error", emailError);
+        }
+      }
+    }
+
+    return new Response(JSON.stringify({ insight, cached: false, nextRefreshAt: expiresAt, resourceCount, emailSent }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
