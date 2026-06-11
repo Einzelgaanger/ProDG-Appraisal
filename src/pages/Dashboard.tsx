@@ -17,7 +17,9 @@ import AIChatPanel from '@/components/dashboard/AIChatPanel';
 import VGGHeader from '@/components/VGGHeader';
 import { Button } from '@/components/ui/button';
 import { ManagerSummary } from '@/types/appraisal';
-import { BarChart3, Users, Trophy, Target, Zap, Loader2, ClipboardList } from 'lucide-react';
+import { DashboardSkeleton, QuickBusyBar } from '@/components/loading/ContentSkeletons';
+import { useProgressiveBusy } from '@/hooks/useProgressiveBusy';
+import { BarChart3, Users, Trophy, Target, Zap, ClipboardList } from 'lucide-react';
 
 export default function Dashboard() {
   const { logout: legacyLogout } = useAuth();
@@ -86,16 +88,11 @@ ${feedbackData.continueDoing || '• No feedback available'}`;
 
   const handleLogout = async () => { legacyLogout(); await employeeLogout(); navigate('/'); };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const loadProgress = useProgressiveBusy(loading, { quickAfterMs: 100, heavyAfterMs: 360 });
 
   return (
     <div className="min-h-screen bg-background">
+      {loadProgress.showQuickPulse && loading && <QuickBusyBar />}
       <VGGHeader
         subtitle="Performance Intelligence"
         onLogout={handleLogout}
@@ -114,6 +111,12 @@ ${feedbackData.continueDoing || '• No feedback available'}`;
       />
 
       <main className="container mx-auto px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        {loading && loadProgress.showHeavySkeleton ? (
+          <DashboardSkeleton />
+        ) : loading ? (
+          <div className="min-h-[50vh]" aria-busy="true" />
+        ) : (
+          <>
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatsCard title="Total Responses" value={overallStats.totalResponses} icon={Users} variant="default" delay={0} />
@@ -136,6 +139,8 @@ ${feedbackData.continueDoing || '• No feedback available'}`;
             </div>
           </div>
         </div>
+          </>
+        )}
       </main>
 
       <AnimatePresence>

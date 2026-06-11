@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, X, Loader2, Brain, MessageCircle } from 'lucide-react';
+import { ChatAssistantSkeleton } from '@/components/loading/ContentSkeletons';
+import { Send, X, Brain, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChatMessage, InsightSuggestion } from '@/types/appraisal';
@@ -105,6 +106,15 @@ export default function AIChatPanel({ isOpen, onClose, dataContext }: AIChatPane
 
     setMessages(prev => [...prev, userMessage]);
     setInput('');
+
+    const assistantId = (Date.now() + 1).toString();
+    const assistantMessage: ChatMessage = {
+      id: assistantId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, assistantMessage]);
     setLoading(true);
 
     try {
@@ -126,14 +136,6 @@ export default function AIChatPanel({ isOpen, onClose, dataContext }: AIChatPane
       const decoder = new TextDecoder();
       let assistantContent = '';
 
-      const assistantMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-
       while (reader) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -149,7 +151,7 @@ export default function AIChatPanel({ isOpen, onClose, dataContext }: AIChatPane
               if (content) {
                 assistantContent += content;
                 setMessages(prev => prev.map(m => 
-                  m.id === assistantMessage.id ? { ...m, content: formatResponse(assistantContent) } : m
+                  m.id === assistantId ? { ...m, content: formatResponse(assistantContent) } : m
                 ));
               }
             } catch {}
@@ -157,12 +159,11 @@ export default function AIChatPanel({ isOpen, onClose, dataContext }: AIChatPane
         }
       }
     } catch (error) {
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'I apologize, but I encountered an error. Please try again.',
-        timestamp: new Date(),
-      }]);
+      setMessages(prev => prev.map(m =>
+        m.id === assistantId
+          ? { ...m, content: 'I apologize, but I encountered an error. Please try again.' }
+          : m,
+      ));
     } finally {
       setLoading(false);
     }
@@ -237,6 +238,9 @@ export default function AIChatPanel({ isOpen, onClose, dataContext }: AIChatPane
                   className={cn('chat-bubble', msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai')}
                 >
                   {msg.role === 'assistant' ? (
+                    !msg.content.trim() && loading ? (
+                      <ChatAssistantSkeleton />
+                    ) : (
                     <div 
                       className="text-sm leading-relaxed prose prose-sm prose-invert max-w-none
                         prose-strong:text-primary prose-strong:font-semibold
@@ -255,17 +259,12 @@ export default function AIChatPanel({ isOpen, onClose, dataContext }: AIChatPane
                           .replace(/\n/g, '<br />')
                       }}
                     />
+                    )
                   ) : (
                     <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                   )}
                 </motion.div>
               ))}
-              {loading && messages[messages.length - 1]?.role === 'user' && (
-                <div className="chat-bubble chat-bubble-ai flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Analyzing...</span>
-                </div>
-              )}
               <div ref={messagesEndRef} />
             </div>
           )}

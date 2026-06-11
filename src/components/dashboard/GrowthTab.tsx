@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
+import { GrowthTabSkeleton, QuickBusyBar } from '@/components/loading/ContentSkeletons';
+import { useProgressiveBusy } from '@/hooks/useProgressiveBusy';
 import {
-  Loader2, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp,
-  AlertTriangle, Rocket, Repeat, MessageSquare, Zap, Star, Brain, Sparkles,
-  HelpCircle,
+  TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp,
+  MessageSquare, Zap, Star, Brain, Sparkles, HelpCircle,
 } from 'lucide-react';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer,
@@ -12,6 +13,7 @@ import {
 } from 'recharts';
 import type { User } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Category { id: string; name: string; sort_order: number; }
 interface Question { id: string; category_id: string; question_text: string; question_type: string; sort_order: number; }
@@ -19,6 +21,7 @@ interface Profile { employee_id: string | null; name: string; email: string; }
 interface CategoryScore { category: string; myScore: number; orgAvg: number; }
 interface QuestionDetail { question: string; myScore: number; orgAvg: number; delta: number; }
 interface FeedbackItem { text: string; }
+interface OpenFeedbackGroup { questionId: string; question: string; items: FeedbackItem[]; }
 
 interface GrowthTabProps {
   user: User | null;
@@ -66,18 +69,17 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
   const [questionDetails, setQuestionDetails] = useState<Record<string, QuestionDetail[]>>({});
   const [totalReviews, setTotalReviews] = useState(0);
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
-  const [feedbackTab, setFeedbackTab] = useState<'stop' | 'start' | 'continue'>('continue');
 
-  // Open-ended feedback
-  const [stopFeedback, setStopFeedback] = useState<FeedbackItem[]>([]);
-  const [startFeedback, setStartFeedback] = useState<FeedbackItem[]>([]);
-  const [continueFeedback, setContinueFeedback] = useState<FeedbackItem[]>([]);
+  // Open-ended feedback, grouped by question (one section per open question)
+  const [openFeedback, setOpenFeedback] = useState<OpenFeedbackGroup[]>([]);
 
   const [feedbackDateRange, setFeedbackDateRange] = useState<{ from: Date; to: Date } | null>(null);
   const [growthInsight, setGrowthInsight] = useState<string | null>(null);
   const [growthInsightLoading, setGrowthInsightLoading] = useState(false);
   const [growthInsightError, setGrowthInsightError] = useState<string | null>(null);
   const [growthInsightMeta, setGrowthInsightMeta] = useState<{ cached?: boolean; nextRefreshAt?: string; emailSent?: boolean } | null>(null);
+  const insightProgress = useProgressiveBusy(growthInsightLoading, { quickAfterMs: 120, heavyAfterMs: 500 });
+  const loadProgress = useProgressiveBusy(loading, { quickAfterMs: 120, heavyAfterMs: 380 });
 
   useEffect(() => {
     if (user && profile?.employee_id) loadGrowthData();
@@ -171,14 +173,13 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
       })));
       setQuestionDetails(qDetails);
 
-      // Open-ended feedback
-      const openQs = questions.filter(q => q.question_type === 'open_ended');
-      const stopQ = openQs.find(q => q.question_text.toLowerCase().includes('stop'));
-      const startQ = openQs.find(q => q.question_text.toLowerCase().includes('start'));
-      const continueQ = openQs.find(q => q.question_text.toLowerCase().includes('continue'));
+      // Open-ended feedback — one group per open question, in form order
+      const openQs = questions
+        .filter(q => q.question_type === 'open_ended')
+        .sort((a, b) => a.sort_order - b.sort_order);
 
       const textAnswers = myAnswers.filter(a => a.text_answer && a.text_answer.trim());
-      
+
       const dedup = (items: string[]) => {
         const seen = new Set<string>();
         return items.filter(t => {
@@ -189,9 +190,14 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
         }).map(t => ({ text: t }));
       };
 
-      if (stopQ) setStopFeedback(dedup(textAnswers.filter(a => a.question_id === stopQ.id).map(a => a.text_answer!)));
-      if (startQ) setStartFeedback(dedup(textAnswers.filter(a => a.question_id === startQ.id).map(a => a.text_answer!)));
-      if (continueQ) setContinueFeedback(dedup(textAnswers.filter(a => a.question_id === continueQ.id).map(a => a.text_answer!)));
+      const grouped: OpenFeedbackGroup[] = openQs
+        .map(q => ({
+          questionId: q.id,
+          question: q.question_text,
+          items: dedup(textAnswers.filter(a => a.question_id === q.id).map(a => a.text_answer!)),
+        }))
+        .filter(g => g.items.length > 0);
+      setOpenFeedback(grouped);
 
     } catch (err) {
       console.error('Growth data error:', err);
@@ -221,12 +227,12 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
     return [...catScores].sort((a, b) => a.myScore - b.myScore)[0];
   }, [catScores]);
 
-  const totalFeedback = stopFeedback.length + startFeedback.length + continueFeedback.length;
+  const totalFeedback = openFeedback.reduce((s, g) => s + g.items.length, 0);
 
   const buildGrowthContextForAI = useCallback(() => {
     if (!catScores.length) return '';
     let s = '';
-    s += `Overall: ${overallScore}/5 vs organisation average ${orgOverall}/5. Peer review responses received: ${totalReviews}.\n`;
+    s += `Overall: ${overallScore}/5 vs organisation average ${orgOverall}/5. Appraisals received: ${totalReviews}.\n`;
     if (feedbackDateRange) {
       s += `Feedback window: ${feedbackDateRange.from.toLocaleDateString()} – ${feedbackDateRange.to.toLocaleDateString()}.\n`;
     }
@@ -243,17 +249,12 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
         s += `- [${cat}] ${d.question}: ${d.myScore} vs ${d.orgAvg} (delta ${d.delta})\n`;
       });
     });
-    s += `\nSTOP DOING (anonymous peer comments):\n`;
-    stopFeedback.forEach(x => {
-      s += `- ${x.text}\n`;
-    });
-    s += `\nSTART DOING (anonymous peer comments):\n`;
-    startFeedback.forEach(x => {
-      s += `- ${x.text}\n`;
-    });
-    s += `\nKEEP DOING (anonymous peer comments):\n`;
-    continueFeedback.forEach(x => {
-      s += `- ${x.text}\n`;
+    s += `\nWritten feedback from manager appraisals:\n`;
+    openFeedback.forEach(group => {
+      s += `\n${group.question}\n`;
+      group.items.forEach(x => {
+        s += `- ${x.text}\n`;
+      });
     });
     return s.slice(0, 24000);
   }, [
@@ -265,9 +266,7 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
     strongest,
     weakest,
     questionDetails,
-    stopFeedback,
-    startFeedback,
-    continueFeedback,
+    openFeedback,
   ]);
 
   const generateGrowthInsight = async (forceRefresh = false) => {
@@ -275,6 +274,7 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
     if (ctx.length < 20) return;
     setGrowthInsightLoading(true);
     setGrowthInsightError(null);
+    setGrowthInsight(null);
     try {
       const { data, error } = await supabase.functions.invoke('growth-insights', {
         body: { growthContext: ctx, forceRefresh },
@@ -301,24 +301,23 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
     }
   };
 
-  const feedbackSections = [
-    { key: 'stop' as const, label: 'STOP DOING', icon: AlertTriangle, items: stopFeedback, accent: 'text-red-500', bg: 'bg-red-500/10 border-red-500/30' },
-    { key: 'start' as const, label: 'START DOING', icon: Rocket, items: startFeedback, accent: 'text-accent', bg: 'bg-accent/10 border-accent/30' },
-    { key: 'continue' as const, label: 'KEEP DOING', icon: Repeat, items: continueFeedback, accent: 'text-green-500', bg: 'bg-green-500/10 border-green-500/30' },
-  ];
-
   if (loading) {
-    return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+    return (
+      <>
+        {loadProgress.showQuickPulse && <QuickBusyBar />}
+        {loadProgress.showHeavySkeleton ? <GrowthTabSkeleton /> : <div className="min-h-[42vh]" aria-hidden />}
+      </>
+    );
   }
 
   if (!catScores.length) {
     return (
       <motion.div {...pageT}>
         <div className="border-2 border-foreground/10 p-10 text-center">
-          <div className="label-mono mb-2">// awaiting_feedback</div>
-          <h3 className="text-lg font-bold mb-2">No Reviews Yet</h3>
-          <p className="text-sm text-muted-foreground">Once your peers review you, your growth insights will appear here.</p>
-          <p className="text-xs text-muted-foreground mt-2">This is a safe space — all feedback is anonymous and aimed at helping you grow.</p>
+          <div className="label-mono mb-2">// awaiting_appraisal</div>
+          <h3 className="text-lg font-bold mb-2">No Results Yet</h3>
+          <p className="text-sm text-muted-foreground">Once your manager completes your appraisal, your results will appear here.</p>
+          <p className="text-xs text-muted-foreground mt-2">You'll receive an email as soon as your results are ready to view.</p>
         </div>
       </motion.div>
     );
@@ -329,10 +328,10 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
       <div className="space-y-4">
         {/* Growth-oriented intro */}
         <div className="border-2 border-accent/30 bg-accent/5 p-4">
-          <div className="label-mono text-accent mb-1">// your_growth_map</div>
+          <div className="label-mono text-accent mb-1">// your_appraisal_results</div>
           <p className="text-sm text-muted-foreground">
-            This is your personal growth snapshot — built from anonymous peer feedback. 
-            No awards, no rankings. Just honest signal to help you level up.
+            This is your performance snapshot — built from your manager's appraisal and benchmarked against the team average.
+            Use it as honest signal to help you level up.
           </p>
         </div>
 
@@ -388,7 +387,7 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
             <div className="text-2xl font-bold">{orgOverall}<span className="text-xs text-muted-foreground">/5</span></div>
           </div>
           <div className="border-2 border-foreground/10 p-4">
-            <div className="label-mono mb-1 text-[9px]">Reviews</div>
+            <div className="label-mono mb-1 text-[9px]">Appraisals</div>
             <div className="text-2xl font-bold">{totalReviews}</div>
           </div>
           <div className="border-2 border-foreground/10 p-4">
@@ -531,67 +530,38 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
           })}
         </div>
 
-        {/* Qualitative feedback */}
+        {/* Qualitative feedback — one section per open question */}
         {totalFeedback > 0 && (
           <div className="border-2 border-foreground/10">
             <div className="p-4 border-b border-foreground/10">
               <div className="flex items-center gap-2 mb-1">
                 <MessageSquare className="w-4 h-4 text-accent" />
-                <h3 className="text-sm font-bold">What Your Peers Said</h3>
+                <h3 className="text-sm font-bold">Written Feedback</h3>
               </div>
               <p className="text-xs text-muted-foreground">
-                Anonymous feedback — use it as a mirror, not a scorecard. Growth happens here.
+                Comments from your manager's appraisal — use it as a mirror, not a scorecard. Growth happens here.
               </p>
             </div>
 
-            {/* Tabs */}
-            <div className="flex border-b border-foreground/10">
-              {feedbackSections.map(s => (
-                <button
-                  key={s.key}
-                  onClick={() => setFeedbackTab(s.key)}
-                  className={`flex-1 p-3 text-center transition-all mono text-[10px] tracking-wider font-bold ${
-                    feedbackTab === s.key
-                      ? `${s.bg} ${s.accent}`
-                      : 'hover:bg-foreground/[0.02] text-muted-foreground'
-                  }`}
-                >
-                  <s.icon className={`w-3.5 h-3.5 mx-auto mb-1 ${feedbackTab === s.key ? s.accent : ''}`} />
-                  {s.label}
-                  <span className="ml-1 opacity-70">({s.items.length})</span>
-                </button>
+            <div className="p-4 space-y-5 max-h-[520px] overflow-y-auto">
+              {openFeedback.map(group => (
+                <div key={group.questionId}>
+                  <p className="text-xs font-bold text-foreground/90 mb-2">{group.question}</p>
+                  <div className="space-y-2">
+                    {group.items.map((item, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.03 }}
+                        className="p-3 border border-foreground/5 bg-foreground/[0.02] text-sm text-foreground/80"
+                      >
+                        "{item.text}"
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
               ))}
-            </div>
-
-            {/* Feedback items */}
-            <div className="p-4 max-h-[400px] overflow-y-auto">
-              <AnimatePresence mode="wait">
-                {feedbackSections.map(s => feedbackTab === s.key && (
-                  <motion.div
-                    key={s.key}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    className="space-y-2"
-                  >
-                    {s.items.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-6">No feedback in this category yet.</p>
-                    ) : (
-                      s.items.map((item, i) => (
-                        <motion.div
-                          key={i}
-                          initial={{ opacity: 0, x: -8 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: i * 0.03 }}
-                          className="p-3 border border-foreground/5 bg-foreground/[0.02] text-sm text-foreground/80"
-                        >
-                          "{item.text}"
-                        </motion.div>
-                      ))
-                    )}
-                  </motion.div>
-                ))}
-              </AnimatePresence>
             </div>
           </div>
         )}
@@ -610,7 +580,7 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
                   <Sparkles className="w-4 h-4 text-accent" />
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-                  Connects your scores and anonymous comments to specific growth actions plus carefully chosen public articles, guides, or talks that match your profile.
+                  Connects your appraisal scores and written feedback to specific growth actions plus carefully chosen public articles, guides, or talks that match your profile.
                 </p>
               </div>
             </div>
@@ -623,10 +593,7 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
               onClick={() => generateGrowthInsight(Boolean(growthInsight))}
             >
               {growthInsightLoading ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
-                  Generating
-                </>
+                'Generating…'
               ) : growthInsight ? (
                 'Regenerate'
               ) : (
@@ -649,6 +616,20 @@ export default function GrowthTab({ user, profile, categories, questions }: Grow
               <p className="text-[10px] text-muted-foreground mt-2 font-normal">
                 Please try again in a moment.
               </p>
+            </div>
+          )}
+          {growthInsightLoading && (
+            <div className="mb-3 space-y-2 border border-foreground/10 bg-card/50 p-4">
+              {insightProgress.showQuickPulse && !insightProgress.showHeavySkeleton && (
+                <div className="h-1 w-2/3 animate-pulse rounded bg-accent/40" />
+              )}
+              {insightProgress.showHeavySkeleton && (
+                <>
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-[94%]" />
+                  <Skeleton className="h-3 w-[88%]" />
+                </>
+              )}
             </div>
           )}
           {growthInsight && !growthInsightLoading && (

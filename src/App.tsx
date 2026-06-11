@@ -15,28 +15,48 @@ import DemoDashboard from "./pages/DemoDashboard";
 import EmployeeHub from "./pages/EmployeeHub";
 import AppraisalAdmin from "./pages/AppraisalAdmin";
 import NotFound from "./pages/NotFound";
-import { Loader2 } from "lucide-react";
+import { AppBootstrapSkeleton, QuickBusyBar } from "./components/loading/ContentSkeletons";
+import { useProgressiveBusy } from "./hooks/useProgressiveBusy";
 
 const queryClient = new QueryClient();
+
+function AuthLoadingShell() {
+  const { isLoading } = useEmployeeAuth();
+  const { showQuickPulse, showHeavySkeleton } = useProgressiveBusy(isLoading, {
+    quickAfterMs: 80,
+    heavyAfterMs: 320,
+  });
+  if (!isLoading) return null;
+  return (
+    <>
+      {showQuickPulse && <QuickBusyBar />}
+      {showHeavySkeleton ? (
+        <AppBootstrapSkeleton />
+      ) : (
+        <div className="min-h-screen bg-background" aria-busy="true" />
+      )}
+    </>
+  );
+}
 
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated: isLegacyAdmin } = useAuth();
   const { isAuthenticated: isEmployee, isAdmin, isLoading } = useEmployeeAuth();
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
+  if (isLoading) return <AuthLoadingShell />;
   if (isLegacyAdmin || (isEmployee && isAdmin)) return <>{children}</>;
   return <Navigate to="/admin" replace />;
 }
 
 function ProtectedEmployeeRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useEmployeeAuth();
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
+  if (isLoading) return <AuthLoadingShell />;
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 function AdminGate() {
   const { isAuthenticated: isLegacyAdmin } = useAuth();
   const { isAuthenticated: isEmployee, isAdmin, isLoading } = useEmployeeAuth();
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
+  if (isLoading) return <AuthLoadingShell />;
   if (isLegacyAdmin || (isEmployee && isAdmin)) return <Navigate to="/appraisal" replace />;
   return <Login />;
 }
@@ -45,7 +65,7 @@ function AppRoutes() {
   const { isAuthenticated: isEmployee, isLoading } = useEmployeeAuth();
 
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
+    return <AuthLoadingShell />;
   }
 
   return (

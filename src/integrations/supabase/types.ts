@@ -341,6 +341,7 @@ export type Database = {
           department: string | null
           email: string | null
           id: string
+          is_pm: boolean
           name: string
           role: string | null
           sort_order: number | null
@@ -351,6 +352,7 @@ export type Database = {
           department?: string | null
           email?: string | null
           id?: string
+          is_pm?: boolean
           name: string
           role?: string | null
           sort_order?: number | null
@@ -361,6 +363,7 @@ export type Database = {
           department?: string | null
           email?: string | null
           id?: string
+          is_pm?: boolean
           name?: string
           role?: string | null
           sort_order?: number | null
@@ -772,7 +775,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      app_role: "admin" | "moderator" | "user" | "pm"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -900,7 +903,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user"],
+      app_role: ["admin", "moderator", "user", "pm"],
     },
   },
 } as const

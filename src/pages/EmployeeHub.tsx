@@ -6,41 +6,56 @@ import { useEmployeeAuth } from '@/contexts/EmployeeAuthContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import VGGHeader from '@/components/VGGHeader';
+import HubAppShell, { type HubTabId } from '@/components/layout/HubAppShell';
+import { HubMainSkeleton, QuickBusyBar, TeamPulseSkeleton } from '@/components/loading/ContentSkeletons';
+import { useProgressiveBusy } from '@/hooks/useProgressiveBusy';
 import {
-  CheckCircle2, ChevronRight, ChevronLeft, Send, Loader2,
-  BarChart3, Users, Search, X, Lock, Plus, Minus, ClipboardList,
+  CheckCircle2, ChevronRight, ChevronLeft, Send,
+  Search, X, Lock, Plus, Minus,
 } from 'lucide-react';
 import GrowthTab from '@/components/dashboard/GrowthTab';
 import AppFeedbackDialog from '@/components/AppFeedbackDialog';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
 
-interface Employee { id: string; name: string; role: string | null; department: string | null; subsidiary_id: string; email: string | null; }
+interface Employee { id: string; name: string; role: string | null; department: string | null; subsidiary_id: string; email: string | null; is_pm: boolean | null; }
 interface Category { id: string; name: string; sort_order: number; }
 interface Question { id: string; category_id: string; question_text: string; question_type: string; sort_order: number; }
 interface PoolPerson { key: string; name: string; email: string | null; primaryEmployeeId: string; primarySubsidiaryId: string; }
 
 
 const SCALE_OPTIONS = [
-  { value: 1, label: 'Rarely' },
-  { value: 2, label: 'Sometimes' },
-  { value: 3, label: 'Often' },
-  { value: 4, label: 'Usually' },
-  { value: 5, label: 'Consistently' },
+  { value: 1, label: 'Lacking' },
+  { value: 2, label: 'Below' },
+  { value: 3, label: 'Meets' },
+  { value: 4, label: 'Strong' },
+  { value: 5, label: 'Exemplary' },
 ];
 
 const pageT = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.15 } };
 
 export default function EmployeeHub() {
-  const { user, profile, logout } = useEmployeeAuth();
+  const { user, profile, logout, isPM } = useEmployeeAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'review';
+  const rawTab = searchParams.get('tab');
+  // PMs appraise (review/pulse); developers only see their results (growth).
+  const requestedTab: HubTabId =
+    rawTab === 'growth' || rawTab === 'pulse' || rawTab === 'review' ? rawTab : (isPM ? 'review' : 'growth');
+  const allowedTabs: HubTabId[] = isPM ? ['review', 'pulse'] : ['growth'];
+  const activeTab: HubTabId = allowedTabs.includes(requestedTab) ? requestedTab : allowedTabs[0];
+
+  useEffect(() => {
+    if (!rawTab) return;
+    const allowed = isPM ? (['review', 'pulse'] as HubTabId[]) : (['growth'] as HubTabId[]);
+    if (!allowed.includes(rawTab as HubTabId)) {
+      setSearchParams({ tab: allowed[0] }, { replace: true });
+    }
+  }, [rawTab, isPM, setSearchParams]);
 
   // Review flow
   const [phase, setPhase] = useState<'pool' | 'box' | 'questions' | 'person-done'>('pool');
@@ -49,7 +64,6 @@ export default function EmployeeHub() {
   const [currentPersonIdx, setCurrentPersonIdx] = useState(0);
   const [currentCatIdx, setCurrentCatIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number | string>>({});
-  const [submitting, setSubmitting] = useState(false);
   const [poolSearch, setPoolSearch] = useState('');
 
   // Data
@@ -89,10 +103,11 @@ export default function EmployeeHub() {
     }
   }, [user]);
 
-  // Deduplicated pool
+  // Deduplicated pool of developers (PMs are excluded — they appraise, not appraised here)
   const poolPeople = useMemo(() => {
     const seen = new Map<string, PoolPerson>();
     allEmployees.forEach(emp => {
+      if (emp.is_pm) return;
       const key = emp.email?.toLowerCase() || emp.name.toLowerCase().trim();
       if (!seen.has(key)) {
         seen.set(key, { key, name: emp.name, email: emp.email, primaryEmployeeId: emp.id, primarySubsidiaryId: emp.subsidiary_id });
@@ -139,29 +154,52 @@ export default function EmployeeHub() {
   const isCatComplete = () => currentQuestions.every(q => q.question_type === 'open_ended' || answers[q.id] !== undefined);
 
   const handleSubmit = async () => {
+    if (!isPM) {
+      toast.error('Only project managers can submit appraisals.');
+      return;
+    }
     const person = lockedPeople[currentPersonIdx];
-    if (!person) return;
-    setSubmitting(true);
+    if (!person || !user) return;
+    const snapshot = { ...answers };
+    const employeeId = person.primaryEmployeeId;
+
+    setCompletedReviews(prev => {
+      const n = new Set(prev);
+      n.add(employeeId);
+      return n;
+    });
+    setPhase('person-done');
+    toast.success('Feedback recorded.');
+
     try {
       const { data, error: e1 } = await supabase
         .from('survey_responses')
         .insert({ employee_id: person.primaryEmployeeId, subsidiary_id: person.primarySubsidiaryId })
         .select('id').single();
       if (e1) throw e1;
-      const rows = Object.entries(answers).map(([qid, val]) => ({
+      const rows = Object.entries(snapshot).map(([qid, val]) => ({
         response_id: data.id, question_id: qid,
         score: typeof val === 'number' ? val : null,
         text_answer: typeof val === 'string' ? val : null,
       }));
       const { error: e2 } = await supabase.from('survey_answers').insert(rows);
       if (e2) throw e2;
-      // Mark completion
-      if (user) await supabase.from('review_completions').insert({ reviewer_id: user.id, employee_id: person.primaryEmployeeId });
-      setCompletedReviews(prev => { const n = new Set(prev); n.add(person.primaryEmployeeId); return n; });
-      setPhase('person-done');
-      toast.success('Feedback recorded.');
-    } catch (err) { console.error(err); toast.error('Failed to submit.'); }
-    finally { setSubmitting(false); }
+      await supabase.from('review_completions').insert({ reviewer_id: user.id, employee_id: employeeId });
+      // Notify the developer their appraisal is ready (fire-and-forget — does not block the UI).
+      supabase.functions
+        .invoke('notify-appraisal', { body: { employeeId } })
+        .catch(err => console.error('notify-appraisal failed', err));
+    } catch (err) {
+      console.error(err);
+      setCompletedReviews(prev => {
+        const n = new Set(prev);
+        n.delete(employeeId);
+        return n;
+      });
+      setAnswers(snapshot);
+      setPhase('questions');
+      toast.error('Could not save. Please try again.');
+    }
   };
 
 
@@ -191,66 +229,57 @@ export default function EmployeeHub() {
 
   const allLocked = lockedPeople.every(p => completedReviews.has(p.primaryEmployeeId));
 
+  const loadProgress = useProgressiveBusy(loading, { quickAfterMs: 90, heavyAfterMs: 360 });
+  const pulseProgress = useProgressiveBusy(teamLoading && activeTab === 'pulse', {
+    quickAfterMs: 100,
+    heavyAfterMs: 420,
+  });
+
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+    return (
+      <HubAppShell
+        activeTab={activeTab}
+        onTabChange={tab => setSearchParams({ tab })}
+        isPM={isPM}
+        userName={profile?.name}
+        userEmail={profile?.email}
+        onLogout={async () => { await logout(); navigate('/'); }}
+      >
+        {loadProgress.showQuickPulse && <QuickBusyBar />}
+        {loadProgress.showHeavySkeleton ? <HubMainSkeleton /> : <div className="min-h-[45vh]" aria-hidden />}
+      </HubAppShell>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <VGGHeader
-        subtitle={profile?.name}
-        onLogout={async () => { await logout(); navigate('/'); }}
-        maxWidth="max-w-4xl"
-        actions={
-          <>
-            <div
-              className="hidden sm:flex items-center gap-1.5 label-mono px-2 cursor-help"
-              title="Your individual scores and comments are never shown to anyone — admins included. Only aggregated, anonymous results."
-            >
-              <Lock className="w-3 h-3" /> Anonymous
-            </div>
-            <AppFeedbackDialog userId={user?.id} page={activeTab} />
-          </>
-        }
-      />
-
-      <div className="max-w-4xl mx-auto px-3 sm:px-6 pt-4 pb-6">
-        <Tabs value={activeTab} onValueChange={t => setSearchParams({ tab: t })}>
-          <TabsList className="grid w-full grid-cols-3 h-auto min-h-11">
-            <TabsTrigger value="review" className="gap-1 sm:gap-2 text-[11px] sm:text-sm font-bold uppercase tracking-wide px-1.5 sm:px-3">
-              <Users className="w-3.5 h-3.5" /> Review
-            </TabsTrigger>
-            <TabsTrigger value="growth" className="gap-1 sm:gap-2 text-[11px] sm:text-sm font-bold uppercase tracking-wide px-1.5 sm:px-3">
-              <BarChart3 className="w-3.5 h-3.5" /> My Growth
-            </TabsTrigger>
-            <TabsTrigger value="pulse" className="gap-1 sm:gap-2 text-[11px] sm:text-sm font-bold uppercase tracking-wide px-1.5 sm:px-3">
-              <ClipboardList className="w-3.5 h-3.5" /> Team Pulse
-            </TabsTrigger>
-          </TabsList>
-
-          {/* ═══ REVIEW TAB ═══ */}
-          <TabsContent value="review" className="mt-4">
+    <HubAppShell
+      activeTab={activeTab}
+      onTabChange={tab => setSearchParams({ tab })}
+      isPM={isPM}
+      userName={profile?.name}
+      userEmail={profile?.email}
+      onLogout={async () => { await logout(); navigate('/'); }}
+    >
+      <div className="mb-3 flex justify-end">
+        <AppFeedbackDialog userId={user?.id} page={activeTab} />
+      </div>
+          {/* ═══ APPRAISE TAB ═══ */}
+          {activeTab === 'review' && (
             <AnimatePresence mode="wait">
 
               {/* POOL PHASE */}
               {phase === 'pool' && (
                 <motion.div key="pool" {...pageT}>
                   <div className="border-2 border-foreground/10 p-5 sm:p-6 mb-4">
-                    <div className="label-mono mb-2">// select_peers</div>
-                    <h2 className="text-xl font-bold mb-1">Pick Your People</h2>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Choose teammates you've worked with closely enough to give honest, helpful feedback.
-                      This isn't about scoring — it's about helping each other grow.
+                    <div className="label-mono mb-2">// select_developers</div>
+                    <h2 className="text-xl font-bold mb-1">Select Your Developers</h2>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Choose the developers you manage and want to appraise, then lock them in.
+                      You'll assess each one on code quality, delivery, and collaboration.
                     </p>
-                    <div className="flex items-start gap-2 p-3 mb-4 border-l-2 border-success bg-success/5 text-xs text-foreground/80">
-                      <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0 text-success" />
-                      <span>
-                        <strong>100% anonymous.</strong> The person you review never sees who reviewed them — and individual scores are never shared, even with admins.
-                      </span>
-                    </div>
                     <div className="relative mb-4">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input placeholder="e.g. Amina, Chinedu, Kwame..." value={poolSearch} onChange={e => setPoolSearch(e.target.value)} className="pl-10 h-10 border-2" />
+                      <Input placeholder="Search by name or email..." value={poolSearch} onChange={e => setPoolSearch(e.target.value)} className="pl-10 h-10 border-2" />
                       {poolSearch && (
                         <button onClick={() => setPoolSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="w-4 h-4 text-muted-foreground" /></button>
                       )}
@@ -281,7 +310,7 @@ export default function EmployeeHub() {
                           </div>
                           <div className="text-sm font-bold truncate">{person.name}</div>
                           {person.email && <div className="mono text-[9px] text-muted-foreground truncate mt-0.5">{person.email}</div>}
-                          {reviewed && <div className="mono text-[9px] text-accent mt-1">✓ REVIEWED</div>}
+                          {reviewed && <div className="mono text-[9px] text-accent mt-1">✓ APPRAISED</div>}
                           {selected && !reviewed && (
                             <div className="absolute top-2 right-2 w-5 h-5 bg-accent flex items-center justify-center">
                               <CheckCircle2 className="w-3 h-3 text-accent-foreground" />
@@ -297,11 +326,11 @@ export default function EmployeeHub() {
                     <motion.div
                       initial={{ y: 100 }}
                       animate={{ y: 0 }}
-                      className="fixed bottom-0 left-0 right-0 bg-foreground text-background border-t-2 border-accent py-3 px-4 sm:py-4 sm:px-6 flex items-center justify-between gap-3 z-30"
+                      className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-between gap-3 border-t-2 border-accent bg-foreground px-4 py-3 text-background sm:px-6 sm:py-4 lg:left-64"
                     >
                       <div className="min-w-0">
                         <span className="text-lg font-bold">{selectedKeys.size}</span>
-                        <span className="mono text-[10px] sm:text-xs ml-2 text-background/60 uppercase tracking-wider">people selected</span>
+                        <span className="mono text-[10px] sm:text-xs ml-2 text-background/60 uppercase tracking-wider">developers selected</span>
                       </div>
                       <button onClick={lockIn} className="bg-accent text-accent-foreground px-4 sm:px-6 py-2.5 font-bold uppercase tracking-[0.08em] text-xs sm:text-sm flex items-center gap-2 hover:shadow-[3px_3px_0px_0px] hover:shadow-background/30 transition-all">
                         <Lock className="w-4 h-4" /> Lock In
@@ -316,16 +345,16 @@ export default function EmployeeHub() {
                 <motion.div key="box" {...pageT}>
                   <div className="border-2 border-foreground/10 p-5 sm:p-6 mb-4">
                     <button onClick={() => { setPhase('pool'); setLockedPeople([]); }} className="label-mono mb-3 flex items-center gap-1 hover:text-foreground">
-                      <ChevronLeft className="w-3 h-3" /> back to pool
+                      <ChevronLeft className="w-3 h-3" /> back to selection
                     </button>
                     <div className="flex items-center gap-2 mb-1">
                       <Lock className="w-4 h-4" />
-                      <h2 className="text-xl font-bold">YOUR REVIEW BOX</h2>
+                      <h2 className="text-xl font-bold">YOUR APPRAISAL LIST</h2>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {allLocked
-                        ? 'All reviews complete! You can go back to select more people.'
-                        : `${lockedPeople.length} people locked in. Click someone to start their review.`
+                        ? 'All appraisals complete! You can go back to select more developers.'
+                        : `${lockedPeople.length} developers locked in. Click someone to start their appraisal.`
                       }
                     </p>
                   </div>
@@ -358,7 +387,7 @@ export default function EmployeeHub() {
                               <CheckCircle2 className="w-3.5 h-3.5" /> DONE
                             </span>
                           ) : (
-                            <span className="mono text-[10px] text-muted-foreground group-hover:text-foreground">REVIEW →</span>
+                            <span className="mono text-[10px] text-muted-foreground group-hover:text-foreground">APPRAISE →</span>
                           )}
                         </button>
                       );
@@ -368,10 +397,10 @@ export default function EmployeeHub() {
                   {allLocked && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="border-2 border-accent p-8 mt-6 text-center">
                       <div className="text-3xl mb-2">✓</div>
-                      <h3 className="text-lg font-bold mb-1">ALL REVIEWS COMPLETE</h3>
-                      <p className="text-sm text-muted-foreground mb-4">Thank you for your honest feedback. You're helping the team grow.</p>
+                      <h3 className="text-lg font-bold mb-1">ALL APPRAISALS COMPLETE</h3>
+                      <p className="text-sm text-muted-foreground mb-4">Thank you. Each developer has been notified that their results are ready.</p>
                       <button onClick={() => { setPhase('pool'); setLockedPeople([]); setSelectedKeys(new Set()); }} className="mono text-xs text-accent hover:underline">
-                        ← Select more people to review
+                        ← Select more developers to appraise
                       </button>
                     </motion.div>
                   )}
@@ -384,7 +413,7 @@ export default function EmployeeHub() {
                   <div className="border-2 border-foreground/10 p-5 sm:p-6">
                     {/* Header */}
                     <div className="flex items-center justify-between mb-1">
-                      <div className="label-mono">// reviewing</div>
+                      <div className="label-mono">// appraising</div>
                       <span className="mono text-xs bg-foreground text-background px-2 py-1 font-bold">
                         {currentCatIdx + 1}/{categories.length}
                       </span>
@@ -462,8 +491,8 @@ export default function EmployeeHub() {
                           Next <ChevronRight className="w-4 h-4" />
                         </Button>
                       ) : (
-                        <Button onClick={handleSubmit} disabled={submitting || answeredScored < totalScored} className="gap-1.5 font-bold uppercase text-xs tracking-wider">
-                          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        <Button onClick={handleSubmit} disabled={answeredScored < totalScored} className="gap-1.5 font-bold uppercase text-xs tracking-wider">
+                          <Send className="w-4 h-4" />
                           Submit
                         </Button>
                       )}
@@ -480,9 +509,9 @@ export default function EmployeeHub() {
                       <CheckCircle2 className="w-8 h-8 text-accent" />
                     </div>
                     <div className="label-mono mb-2">// recorded</div>
-                    <h2 className="text-xl font-bold mb-2">FEEDBACK SAVED</h2>
+                    <h2 className="text-xl font-bold mb-2">APPRAISAL SAVED</h2>
                     <p className="text-sm text-muted-foreground mb-6">
-                      Your anonymous review of {lockedPeople[currentPersonIdx]?.name} has been recorded.
+                      Your appraisal of {lockedPeople[currentPersonIdx]?.name} has been recorded, and they've been emailed that their results are ready.
                     </p>
                     <button
                       onClick={() => { setPhase('box'); setAnswers({}); setCurrentCatIdx(0); }}
@@ -494,20 +523,21 @@ export default function EmployeeHub() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </TabsContent>
+          )}
 
-          {/* ═══ MY GROWTH TAB ═══ */}
-          <TabsContent value="growth" className="mt-4">
+          {/* ═══ MY RESULTS TAB ═══ */}
+          {activeTab === 'growth' && (
             <GrowthTab user={user} profile={profile} categories={categories} questions={questions} />
-          </TabsContent>
+          )}
 
           {/* ═══ TEAM PULSE TAB ═══ */}
-          <TabsContent value="pulse" className="mt-4">
-            <motion.div {...pageT}>
-              {teamLoading ? (
-                <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin" /></div>
+          {activeTab === 'pulse' && (
+            <motion.div {...pageT} className="relative">
+              {pulseProgress.showQuickPulse && <QuickBusyBar />}
+              {pulseProgress.showHeavySkeleton && teamLoading ? (
+                <TeamPulseSkeleton />
               ) : (
-                <div className="space-y-4">
+                <div className={cn('space-y-4', teamLoading && pulseProgress.showQuickPulse && 'opacity-75 transition-opacity')}>
                   <div className="border-2 border-foreground/10 p-5 sm:p-6">
                     <div className="label-mono mb-2">// team_pulse</div>
                     <h2 className="text-xl font-bold mb-1">Aggregate Team Insights</h2>
@@ -544,9 +574,7 @@ export default function EmployeeHub() {
                 </div>
               )}
             </motion.div>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
+          )}
+    </HubAppShell>
   );
 }

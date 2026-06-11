@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.handle-email-suppression]
 verify_jwt = false
+
+[functions.notify-appraisal]
+verify_jwt = true
+
+[functions.bulk-create-users]
+verify_jwt = true

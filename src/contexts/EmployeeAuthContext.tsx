@@ -17,6 +17,7 @@ interface EmployeeAuthContextType {
   profile: Profile | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isPM: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ error: string | null }>;
   logout: () => Promise<void>;
@@ -31,6 +32,7 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isPM, setIsPM] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -64,15 +66,17 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
-          .eq('role', 'admin')
-          .maybeSingle(),
+          .in('role', ['admin', 'pm']),
       ]).then(([profileResult, roleResult]) => {
         setProfile(profileResult.data as Profile | null);
-        setIsAdmin(!!roleResult.data);
+        const roles = new Set((roleResult.data ?? []).map(r => r.role));
+        setIsAdmin(roles.has('admin'));
+        setIsPM(roles.has('pm'));
       }).finally(() => setIsLoading(false));
     } else {
       setProfile(null);
       setIsAdmin(false);
+      setIsPM(false);
     }
   }, [user]);
 
@@ -104,6 +108,7 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
         user, session, profile,
         isAuthenticated: !!session,
         isAdmin,
+        isPM,
         isLoading,
         login, logout, resetPassword, updatePassword,
       }}

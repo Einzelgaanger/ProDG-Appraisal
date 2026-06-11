@@ -14,7 +14,9 @@ import AIChatPanel from '@/components/dashboard/AIChatPanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ManagerSummary } from '@/types/appraisal';
-import { BarChart3, Users, Trophy, Target, Zap, Loader2 } from 'lucide-react';
+import { DashboardSkeleton, QuickBusyBar } from '@/components/loading/ContentSkeletons';
+import { useProgressiveBusy } from '@/hooks/useProgressiveBusy';
+import { BarChart3, Users, Trophy, Target, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function DemoDashboard() {
@@ -78,16 +80,11 @@ QUALITATIVE FEEDBACK - CONTINUE DOING (Strengths):
 ${feedbackData.continueDoing || '• No feedback available'}`;
   }, [managerSummaries, overallStats, competencyScores, relationshipDistribution, scoreDistribution, feedbackThemes]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const loadProgress = useProgressiveBusy(loading, { quickAfterMs: 100, heavyAfterMs: 360 });
 
   return (
     <div className="min-h-screen bg-background">
+      {loadProgress.showQuickPulse && loading && <QuickBusyBar />}
       {/* Demo Banner */}
       <div className="bg-amber-500/15 border-b border-amber-500/30">
         <div className="container mx-auto px-4 py-2 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
@@ -123,6 +120,12 @@ ${feedbackData.continueDoing || '• No feedback available'}`;
       </header>
 
       <main className="container mx-auto px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        {loading && loadProgress.showHeavySkeleton ? (
+          <DashboardSkeleton />
+        ) : loading ? (
+          <div className="min-h-[50vh]" aria-busy="true" />
+        ) : (
+          <>
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatsCard title="Total Responses" value={overallStats.totalResponses} icon={Users} variant="default" delay={0} />
@@ -145,6 +148,8 @@ ${feedbackData.continueDoing || '• No feedback available'}`;
             </div>
           </div>
         </div>
+          </>
+        )}
       </main>
 
       <AnimatePresence>
