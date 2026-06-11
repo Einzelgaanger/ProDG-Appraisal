@@ -17,7 +17,13 @@ function groupKey(pmId: string, name: string): GroupKey {
   return `${pmId}::${name.trim().toLowerCase()}`;
 }
 
-export default function PMAssignmentsPanel() {
+export default function PMAssignmentsPanel({
+  prodgSubsidiaryId,
+  onSaved,
+}: {
+  prodgSubsidiaryId?: string | null;
+  onSaved?: () => void;
+}) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pmProfiles, setPmProfiles] = useState<ProfileRow[]>([]);
@@ -32,11 +38,16 @@ export default function PMAssignmentsPanel() {
   const load = async () => {
     setLoading(true);
     try {
-      const [rolesRes, empRes, assignRes] = await Promise.all([
+      const [rolesRes, assignRes] = await Promise.all([
         supabase.from('user_roles').select('user_id').eq('role', 'pm'),
-        supabase.from('employees').select('id, name, email, is_pm').order('name'),
         supabase.from('pm_developer_assignments').select('id, pm_user_id, employee_id, group_name'),
       ]);
+
+      let empQuery = supabase.from('employees').select('id, name, email, is_pm').order('name');
+      if (prodgSubsidiaryId) {
+        empQuery = empQuery.eq('subsidiary_id', prodgSubsidiaryId);
+      }
+      const empRes = await empQuery;
 
       const pmUserIds = (rolesRes.data ?? []).map(r => r.user_id);
       let profiles: ProfileRow[] = [];
@@ -61,7 +72,7 @@ export default function PMAssignmentsPanel() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [prodgSubsidiaryId]);
 
   const pmGroups = useMemo(() => {
     const map = new Map<string, { name: string; devIds: string[] }>();
@@ -173,6 +184,7 @@ export default function PMAssignmentsPanel() {
       toast.success(`Locked in "${name}" — PM notified`);
       setActiveGroupName(name);
       await load();
+      onSaved?.();
     } catch (err) {
       console.error(err);
       toast.error('Could not save group');

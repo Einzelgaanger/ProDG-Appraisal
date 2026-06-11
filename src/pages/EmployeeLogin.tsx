@@ -99,7 +99,7 @@ export default function EmployeeLogin() {
             <div className="mt-6" />
             <div className="label-mono mb-2">// sign_in</div>
             <h1 className="text-2xl font-bold mb-1">Welcome Back</h1>
-            <p className="text-muted-foreground text-sm">ProDG 360° Peer Review</p>
+            <p className="text-muted-foreground text-sm">ProDG Performance Appraisal</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
