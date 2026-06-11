@@ -13,6 +13,7 @@ import Login from "./pages/Login";
 import Unsubscribe from "./pages/Unsubscribe";
 import DemoDashboard from "./pages/DemoDashboard";
 import EmployeeHub from "./pages/EmployeeHub";
+import DeveloperInfo from "./pages/DeveloperInfo";
 import AppraisalAdmin from "./pages/AppraisalAdmin";
 import NotFound from "./pages/NotFound";
 import { AppBootstrapSkeleton, QuickBusyBar } from "./components/loading/ContentSkeletons";
@@ -53,6 +54,15 @@ function ProtectedEmployeeRoute({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
+/** Hub is for PMs (and admins acting as PM). Developers get results via email PDF. */
+function ProtectedHubRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isPM, isAdmin, isLoading } = useEmployeeAuth();
+  if (isLoading) return <AuthLoadingShell />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isPM && !isAdmin) return <Navigate to="/developer-info" replace />;
+  return <>{children}</>;
+}
+
 function AdminGate() {
   const { isAuthenticated: isLegacyAdmin } = useAuth();
   const { isAuthenticated: isEmployee, isAdmin, isLoading } = useEmployeeAuth();
@@ -70,11 +80,12 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/" element={isEmployee ? <Navigate to="/hub" /> : <Onboarding />} />
-      <Route path="/login" element={isEmployee ? <Navigate to="/hub" /> : <EmployeeLogin />} />
+      <Route path="/" element={<Onboarding />} />
+      <Route path="/login" element={<EmployeeLogin />} />
+      <Route path="/developer-info" element={<ProtectedEmployeeRoute><DeveloperInfo /></ProtectedEmployeeRoute>} />
       <Route path="/find-account" element={<FindAccount />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/hub" element={<ProtectedEmployeeRoute><EmployeeHub /></ProtectedEmployeeRoute>} />
+      <Route path="/hub" element={<ProtectedHubRoute><EmployeeHub /></ProtectedHubRoute>} />
       {/* Legacy routes redirect to hub */}
       <Route path="/survey" element={<Navigate to="/hub?tab=survey" replace />} />
       <Route path="/my-dashboard" element={<Navigate to="/hub?tab=dashboard" replace />} />

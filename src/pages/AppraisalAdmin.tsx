@@ -12,11 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import AIChatPanel from '@/components/dashboard/AIChatPanel';
 import VGGHeader from '@/components/VGGHeader';
 import { AppraisalAdminSkeleton, QuickBusyBar } from '@/components/loading/ContentSkeletons';
+import PMAssignmentsPanel from '@/components/admin/PMAssignmentsPanel';
+import AdminReleasePanel from '@/components/admin/AdminReleasePanel';
 import { useProgressiveBusy } from '@/hooks/useProgressiveBusy';
 import {
   BarChart3, Users, Building2, ClipboardCheck, ArrowLeft, RefreshCw,
   TrendingUp, Clock, ChevronDown, ChevronUp, Search,
-  Star, Target, Trophy, Activity, Brain
+  Star, Target, Trophy, Activity, Brain, UserCog, Send
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -24,7 +26,17 @@ import {
   PieChart, Pie, Cell, AreaChart, Area,
 } from 'recharts';
 
-interface ResponseRow { id: string; employee_id: string; subsidiary_id: string; created_at: string; }
+interface ResponseRow {
+  id: string;
+  employee_id: string;
+  subsidiary_id: string;
+  assignment_id: string | null;
+  reviewer_id: string | null;
+  created_at: string;
+  released_at: string | null;
+}
+interface AssignmentRow { id: string; group_name: string; }
+interface ProfileRow { id: string; name: string; }
 interface AnswerRow { id: string; response_id: string; question_id: string; score: number | null; text_answer: string | null; }
 interface EmployeeRow { id: string; name: string; role: string | null; department: string | null; subsidiary_id: string; }
 interface SubsidiaryRow { id: string; name: string; }
@@ -53,7 +65,12 @@ export default function AppraisalAdmin() {
   const [expandedResponse, setExpandedResponse] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [adminTab, setAdminTab] = useState('overview');
+  const [adminTab, setAdminTab] = useState(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    return tab === 'release' || tab === 'assignments' ? tab : 'overview';
+  });
+  const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
+  const [reviewerProfiles, setReviewerProfiles] = useState<ProfileRow[]>([]);
 
   useEffect(() => {
     loadAllData();
@@ -72,20 +89,30 @@ export default function AppraisalAdmin() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const [resRes, ansRes, empRes, subRes, catRes, qRes] = await Promise.all([
+      const [resRes, ansRes, empRes, subRes, catRes, qRes, assignRes] = await Promise.all([
         supabase.from('survey_responses').select('*').order('created_at', { ascending: false }),
         supabase.from('survey_answers').select('*'),
         supabase.from('employees').select('*').order('name'),
         supabase.from('subsidiaries').select('*').order('name'),
         supabase.from('survey_categories').select('*').order('sort_order'),
         supabase.from('survey_questions').select('*').order('sort_order'),
+        supabase.from('pm_developer_assignments').select('id, group_name'),
       ]);
-      if (resRes.data) setResponses(resRes.data);
+      if (resRes.data) setResponses(resRes.data as ResponseRow[]);
       if (ansRes.data) setAnswers(ansRes.data);
       if (empRes.data) setEmployees(empRes.data);
       if (subRes.data) setSubsidiaries(subRes.data);
       if (catRes.data) setCategories(catRes.data);
       if (qRes.data) setQuestions(qRes.data);
+      if (assignRes.data) setAssignments(assignRes.data as AssignmentRow[]);
+
+      const reviewerIds = [...new Set((resRes.data ?? []).map((r: ResponseRow) => r.reviewer_id).filter(Boolean))] as string[];
+      if (reviewerIds.length) {
+        const { data: profs } = await supabase.from('profiles').select('id, name').in('id', reviewerIds);
+        if (profs) setReviewerProfiles(profs as ProfileRow[]);
+      } else {
+        setReviewerProfiles([]);
+      }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -109,6 +136,11 @@ export default function AppraisalAdmin() {
   const scoredQuestionIds = useMemo(
     () => new Set(questions.filter(q => q.question_type === 'scored').map(q => q.id)),
     [questions]
+  );
+
+  const pendingReleaseCount = useMemo(
+    () => responses.filter((r) => !r.released_at).length,
+    [responses],
   );
 
   const totalResponses = filteredResponses.length;
@@ -405,12 +437,36 @@ ${feedbackSample || '• No text feedback yet'}` : ''}`;
           </div>
         ) : (
           <Tabs value={adminTab} onValueChange={setAdminTab}>
-            <TabsList className="grid w-full grid-cols-4 h-auto min-h-10">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-6 h-auto min-h-10">
+              <TabsTrigger value="assignments" className="text-[11px] sm:text-xs gap-1 px-1.5 sm:px-3"><UserCog className="w-3 h-3" /> Assign</TabsTrigger>
+              <TabsTrigger value="release" className="text-[11px] sm:text-xs gap-1 px-1.5 sm:px-3">
+                <Send className="w-3 h-3" /> Release
+                {pendingReleaseCount > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1 text-[9px]">{pendingReleaseCount}</Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="overview" className="text-[11px] sm:text-xs gap-1 px-1.5 sm:px-3"><BarChart3 className="w-3 h-3" /> Overview</TabsTrigger>
               <TabsTrigger value="people" className="text-[11px] sm:text-xs gap-1 px-1.5 sm:px-3"><Users className="w-3 h-3" /> People</TabsTrigger>
               <TabsTrigger value="trends" className="text-[11px] sm:text-xs gap-1 px-1.5 sm:px-3"><TrendingUp className="w-3 h-3" /> Trends</TabsTrigger>
               <TabsTrigger value="feed" className="text-[11px] sm:text-xs gap-1 px-1.5 sm:px-3"><Clock className="w-3 h-3" /> Live Feed</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="assignments" className="mt-4">
+              <PMAssignmentsPanel />
+            </TabsContent>
+
+            <TabsContent value="release" className="mt-4">
+              <AdminReleasePanel
+                responses={responses}
+                employees={employees}
+                assignments={assignments}
+                reviewerProfiles={reviewerProfiles}
+                answers={answers}
+                questions={questions}
+                categories={categories}
+                onReleased={loadAllData}
+              />
+            </TabsContent>
 
             {/* ===== OVERVIEW TAB ===== */}
             <TabsContent value="overview" className="mt-4 space-y-6">
@@ -661,9 +717,16 @@ ${feedbackSample || '• No text feedback yet'}` : ''}`;
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(r.created_at).toLocaleDateString()} {new Date(r.created_at).toLocaleTimeString()}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              {r.released_at ? (
+                                <Badge variant="secondary" className="text-[9px]">Released</Badge>
+                              ) : (
+                                <Badge className="text-[9px] bg-warning/20 text-warning border-warning/30">Pending</Badge>
+                              )}
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(r.created_at).toLocaleDateString()} {new Date(r.created_at).toLocaleTimeString()}
+                              </span>
+                            </div>
                             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                           </div>
                         </button>

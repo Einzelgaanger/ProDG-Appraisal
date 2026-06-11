@@ -5,15 +5,13 @@ import { supabase } from '@/lib/supabase';
 import { useEmployeeAuth } from '@/contexts/EmployeeAuthContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import HubAppShell, { type HubTabId } from '@/components/layout/HubAppShell';
 import { HubMainSkeleton, QuickBusyBar, TeamPulseSkeleton } from '@/components/loading/ContentSkeletons';
 import { useProgressiveBusy } from '@/hooks/useProgressiveBusy';
 import {
   CheckCircle2, ChevronRight, ChevronLeft, Send,
-  Search, X, Lock, Plus, Minus,
+  Lock,
 } from 'lucide-react';
-import GrowthTab from '@/components/dashboard/GrowthTab';
 import AppFeedbackDialog from '@/components/AppFeedbackDialog';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -25,7 +23,15 @@ import {
 interface Employee { id: string; name: string; role: string | null; department: string | null; subsidiary_id: string; email: string | null; is_pm: boolean | null; }
 interface Category { id: string; name: string; sort_order: number; }
 interface Question { id: string; category_id: string; question_text: string; question_type: string; sort_order: number; }
-interface PoolPerson { key: string; name: string; email: string | null; primaryEmployeeId: string; primarySubsidiaryId: string; }
+interface PoolPerson {
+  key: string;
+  assignmentId: string;
+  groupName: string;
+  name: string;
+  email: string | null;
+  primaryEmployeeId: string;
+  primarySubsidiaryId: string;
+}
 
 
 const SCALE_OPTIONS = [
@@ -39,55 +45,47 @@ const SCALE_OPTIONS = [
 const pageT = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.15 } };
 
 export default function EmployeeHub() {
-  const { user, profile, logout, isPM } = useEmployeeAuth();
+  const { user, profile, logout, isPM, isAdmin } = useEmployeeAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get('tab');
-  // PMs appraise (review/pulse); developers only see their results (growth).
+  // Hub is PM-only (developers get PDF by email).
+  const allowedTabs: HubTabId[] = ['review', 'pulse'];
   const requestedTab: HubTabId =
-    rawTab === 'growth' || rawTab === 'pulse' || rawTab === 'review' ? rawTab : (isPM ? 'review' : 'growth');
-  const allowedTabs: HubTabId[] = isPM ? ['review', 'pulse'] : ['growth'];
-  const activeTab: HubTabId = allowedTabs.includes(requestedTab) ? requestedTab : allowedTabs[0];
+    rawTab === 'pulse' || rawTab === 'review' ? rawTab : 'review';
+  const activeTab: HubTabId = allowedTabs.includes(requestedTab) ? requestedTab : 'review';
 
   useEffect(() => {
     if (!rawTab) return;
-    const allowed = isPM ? (['review', 'pulse'] as HubTabId[]) : (['growth'] as HubTabId[]);
-    if (!allowed.includes(rawTab as HubTabId)) {
-      setSearchParams({ tab: allowed[0] }, { replace: true });
+    if (!allowedTabs.includes(rawTab as HubTabId)) {
+      setSearchParams({ tab: 'review' }, { replace: true });
     }
-  }, [rawTab, isPM, setSearchParams]);
+  }, [rawTab, setSearchParams]);
 
-  // Review flow
-  const [phase, setPhase] = useState<'pool' | 'box' | 'questions' | 'person-done'>('pool');
-  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [phase, setPhase] = useState<'box' | 'questions' | 'person-done'>('box');
   const [lockedPeople, setLockedPeople] = useState<PoolPerson[]>([]);
+  const [assignedEmployeeIds, setAssignedEmployeeIds] = useState<string[]>([]);
   const [currentPersonIdx, setCurrentPersonIdx] = useState(0);
   const [currentCatIdx, setCurrentCatIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number | string>>({});
-  const [poolSearch, setPoolSearch] = useState('');
 
-  // Data
-  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
-  const [completedReviews, setCompletedReviews] = useState<Set<string>>(new Set());
+  const [completedReviews, setCompletedReviews] = useState<Set<string>>(new Set()); // assignment ids
 
 
   // Team pulse
   const [teamData, setTeamData] = useState<{ totalReviews: number; avgScore: number; categories: { name: string; avg: number }[] }>({ totalReviews: 0, avgScore: 0, categories: [] });
   const [teamLoading, setTeamLoading] = useState(true);
 
-  // Load data
   useEffect(() => {
     (async () => {
       try {
-        const [empRes, catRes, qRes] = await Promise.all([
-          supabase.from('employees').select('*').order('name'),
+        const [catRes, qRes] = await Promise.all([
           supabase.from('survey_categories').select('*').order('sort_order'),
           supabase.from('survey_questions').select('*').order('sort_order'),
         ]);
-        if (empRes.data) setAllEmployees(empRes.data);
         if (catRes.data) setCategories(catRes.data);
         if (qRes.data) setQuestions(qRes.data);
       } catch (err) { console.error(err); }
@@ -95,49 +93,51 @@ export default function EmployeeHub() {
     })();
   }, []);
 
-  // Load completions
+  useEffect(() => {
+    if (!user || (!isPM && !isAdmin)) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from('pm_developer_assignments')
+        .select('id, group_name, employee_id, employees(id, name, email, subsidiary_id, is_pm)')
+        .eq('pm_user_id', user.id)
+        .order('group_name');
+      if (error) {
+        console.error(error);
+        return;
+      }
+      const people: PoolPerson[] = [];
+      const ids: string[] = [];
+      (data ?? []).forEach((row: { id: string; group_name: string; employee_id: string; employees: Employee | null }) => {
+        const emp = row.employees;
+        if (!emp || emp.is_pm) return;
+        ids.push(emp.id);
+        people.push({
+          key: row.id,
+          assignmentId: row.id,
+          groupName: row.group_name,
+          name: emp.name,
+          email: emp.email,
+          primaryEmployeeId: emp.id,
+          primarySubsidiaryId: emp.subsidiary_id,
+        });
+      });
+      setAssignedEmployeeIds(ids);
+      setLockedPeople(people);
+    })();
+  }, [user, isPM, isAdmin]);
+
   useEffect(() => {
     if (user) {
-      supabase.from('review_completions').select('employee_id').eq('reviewer_id', user.id)
-        .then(({ data }) => { if (data) setCompletedReviews(new Set(data.map(d => d.employee_id))); });
+      supabase.from('review_completions').select('assignment_id, employee_id').eq('reviewer_id', user.id)
+        .then(({ data }) => {
+          if (data) {
+            setCompletedReviews(new Set(
+              data.map(d => d.assignment_id ?? `legacy:${d.employee_id}`),
+            ));
+          }
+        });
     }
   }, [user]);
-
-  // Deduplicated pool of developers (PMs are excluded — they appraise, not appraised here)
-  const poolPeople = useMemo(() => {
-    const seen = new Map<string, PoolPerson>();
-    allEmployees.forEach(emp => {
-      if (emp.is_pm) return;
-      const key = emp.email?.toLowerCase() || emp.name.toLowerCase().trim();
-      if (!seen.has(key)) {
-        seen.set(key, { key, name: emp.name, email: emp.email, primaryEmployeeId: emp.id, primarySubsidiaryId: emp.subsidiary_id });
-      }
-    });
-    // Remove self
-    const myEmail = profile?.email?.toLowerCase();
-    if (myEmail) seen.delete(myEmail);
-    return Array.from(seen.values());
-  }, [allEmployees, profile]);
-
-  const filteredPool = useMemo(() => {
-    if (!poolSearch.trim()) return poolPeople;
-    const q = poolSearch.toLowerCase();
-    return poolPeople.filter(p => p.name.toLowerCase().includes(q) || (p.email && p.email.toLowerCase().includes(q)));
-  }, [poolPeople, poolSearch]);
-
-  const toggleSelect = (key: string) => {
-    setSelectedKeys(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
-  };
-
-  const lockIn = () => {
-    const people = poolPeople.filter(p => selectedKeys.has(p.key));
-    setLockedPeople(people);
-    setPhase('box');
-  };
 
   const startReview = (idx: number) => {
     setCurrentPersonIdx(idx);
@@ -154,7 +154,7 @@ export default function EmployeeHub() {
   const isCatComplete = () => currentQuestions.every(q => q.question_type === 'open_ended' || answers[q.id] !== undefined);
 
   const handleSubmit = async () => {
-    if (!isPM) {
+    if (!isPM && !isAdmin) {
       toast.error('Only project managers can submit appraisals.');
       return;
     }
@@ -162,10 +162,11 @@ export default function EmployeeHub() {
     if (!person || !user) return;
     const snapshot = { ...answers };
     const employeeId = person.primaryEmployeeId;
+    const assignmentId = person.assignmentId;
 
     setCompletedReviews(prev => {
       const n = new Set(prev);
-      n.add(employeeId);
+      n.add(assignmentId);
       return n;
     });
     setPhase('person-done');
@@ -174,7 +175,12 @@ export default function EmployeeHub() {
     try {
       const { data, error: e1 } = await supabase
         .from('survey_responses')
-        .insert({ employee_id: person.primaryEmployeeId, subsidiary_id: person.primarySubsidiaryId })
+        .insert({
+          employee_id: person.primaryEmployeeId,
+          subsidiary_id: person.primarySubsidiaryId,
+          assignment_id: assignmentId,
+          reviewer_id: user.id,
+        })
         .select('id').single();
       if (e1) throw e1;
       const rows = Object.entries(snapshot).map(([qid, val]) => ({
@@ -184,16 +190,19 @@ export default function EmployeeHub() {
       }));
       const { error: e2 } = await supabase.from('survey_answers').insert(rows);
       if (e2) throw e2;
-      await supabase.from('review_completions').insert({ reviewer_id: user.id, employee_id: employeeId });
-      // Notify the developer their appraisal is ready (fire-and-forget — does not block the UI).
+      await supabase.from('review_completions').insert({
+        reviewer_id: user.id,
+        employee_id: employeeId,
+        assignment_id: assignmentId,
+      });
       supabase.functions
-        .invoke('notify-appraisal', { body: { employeeId } })
-        .catch(err => console.error('notify-appraisal failed', err));
+        .invoke('notify-appraisal-submitted', { body: { employeeId, responseId: data.id, assignmentId } })
+        .catch(err => console.error('notify-appraisal-submitted failed', err));
     } catch (err) {
       console.error(err);
       setCompletedReviews(prev => {
         const n = new Set(prev);
-        n.delete(employeeId);
+        n.delete(assignmentId);
         return n;
       });
       setAnswers(snapshot);
@@ -206,13 +215,30 @@ export default function EmployeeHub() {
   // Team pulse
   useEffect(() => {
     if (activeTab === 'pulse') loadTeamPulse();
-  }, [activeTab]);
+  }, [activeTab, assignedEmployeeIds]);
 
   const loadTeamPulse = async () => {
+    if (!assignedEmployeeIds.length) {
+      setTeamData({ totalReviews: 0, avgScore: 0, categories: [] });
+      setTeamLoading(false);
+      return;
+    }
     setTeamLoading(true);
     try {
-      const { data: responses } = await supabase.from('survey_responses').select('id');
-      const { data: allAns } = await supabase.from('survey_answers').select('score, survey_questions(survey_categories(name))').not('score', 'is', null);
+      const { data: responses } = await supabase
+        .from('survey_responses')
+        .select('id')
+        .in('employee_id', assignedEmployeeIds);
+      const responseIds = (responses ?? []).map(r => r.id);
+      if (!responseIds.length) {
+        setTeamData({ totalReviews: 0, avgScore: 0, categories: [] });
+        return;
+      }
+      const { data: allAns } = await supabase
+        .from('survey_answers')
+        .select('score, response_id, survey_questions(survey_categories(name))')
+        .in('response_id', responseIds)
+        .not('score', 'is', null);
       const catScores: Record<string, number[]> = {};
       (allAns as any[])?.forEach(a => { const c = a.survey_questions?.survey_categories?.name; if (c && a.score) { (catScores[c] ??= []).push(a.score); } });
       const cats = Object.entries(catScores).map(([name, scores]) => ({ name, avg: +(scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) }));
@@ -227,7 +253,17 @@ export default function EmployeeHub() {
   };
 
 
-  const allLocked = lockedPeople.every(p => completedReviews.has(p.primaryEmployeeId));
+  const allLocked = lockedPeople.length > 0 && lockedPeople.every(p => completedReviews.has(p.assignmentId));
+
+  const peopleByGroup = useMemo(() => {
+    const map = new Map<string, { groupName: string; items: { person: PoolPerson; idx: number }[] }>();
+    lockedPeople.forEach((person, idx) => {
+      const entry = map.get(person.groupName) ?? { groupName: person.groupName, items: [] };
+      entry.items.push({ person, idx });
+      map.set(person.groupName, entry);
+    });
+    return Array.from(map.values()).sort((a, b) => a.groupName.localeCompare(b.groupName));
+  }, [lockedPeople]);
 
   const loadProgress = useProgressiveBusy(loading, { quickAfterMs: 90, heavyAfterMs: 360 });
   const pulseProgress = useProgressiveBusy(teamLoading && activeTab === 'pulse', {
@@ -267,141 +303,71 @@ export default function EmployeeHub() {
           {activeTab === 'review' && (
             <AnimatePresence mode="wait">
 
-              {/* POOL PHASE */}
-              {phase === 'pool' && (
-                <motion.div key="pool" {...pageT}>
-                  <div className="border-2 border-foreground/10 p-5 sm:p-6 mb-4">
-                    <div className="label-mono mb-2">// select_developers</div>
-                    <h2 className="text-xl font-bold mb-1">Select Your Developers</h2>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Choose the developers you manage and want to appraise, then lock them in.
-                      You'll assess each one on code quality, delivery, and collaboration.
-                    </p>
-                    <div className="relative mb-4">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input placeholder="Search by name or email..." value={poolSearch} onChange={e => setPoolSearch(e.target.value)} className="pl-10 h-10 border-2" />
-                      {poolSearch && (
-                        <button onClick={() => setPoolSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="w-4 h-4 text-muted-foreground" /></button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 gap-2 mb-24">
-                    {filteredPool.map(person => {
-                      const selected = selectedKeys.has(person.key);
-                      const reviewed = completedReviews.has(person.primaryEmployeeId);
-                      return (
-                        <button
-                          key={person.key}
-                          onClick={() => !reviewed && toggleSelect(person.key)}
-                          disabled={reviewed}
-                          className={`relative p-4 border-2 text-left transition-all duration-150 group ${
-                            reviewed
-                              ? 'border-foreground/5 bg-muted/50 opacity-50 cursor-not-allowed'
-                              : selected
-                              ? 'border-accent bg-accent/5 shadow-[3px_3px_0px_0px] shadow-accent -translate-x-0.5 -translate-y-0.5'
-                              : 'border-foreground/10 bg-card hover:border-foreground/30'
-                          }`}
-                        >
-                          <div className={`w-10 h-10 flex items-center justify-center font-bold text-sm mb-2 ${
-                            selected ? 'bg-accent text-accent-foreground' : reviewed ? 'bg-muted text-muted-foreground' : 'bg-foreground text-background'
-                          }`}>
-                            {person.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                          </div>
-                          <div className="text-sm font-bold truncate">{person.name}</div>
-                          {person.email && <div className="mono text-[9px] text-muted-foreground truncate mt-0.5">{person.email}</div>}
-                          {reviewed && <div className="mono text-[9px] text-accent mt-1">✓ APPRAISED</div>}
-                          {selected && !reviewed && (
-                            <div className="absolute top-2 right-2 w-5 h-5 bg-accent flex items-center justify-center">
-                              <CheckCircle2 className="w-3 h-3 text-accent-foreground" />
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Bottom bar */}
-                  {selectedKeys.size > 0 && (
-                    <motion.div
-                      initial={{ y: 100 }}
-                      animate={{ y: 0 }}
-                      className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-between gap-3 border-t-2 border-accent bg-foreground px-4 py-3 text-background sm:px-6 sm:py-4 lg:left-64"
-                    >
-                      <div className="min-w-0">
-                        <span className="text-lg font-bold">{selectedKeys.size}</span>
-                        <span className="mono text-[10px] sm:text-xs ml-2 text-background/60 uppercase tracking-wider">developers selected</span>
-                      </div>
-                      <button onClick={lockIn} className="bg-accent text-accent-foreground px-4 sm:px-6 py-2.5 font-bold uppercase tracking-[0.08em] text-xs sm:text-sm flex items-center gap-2 hover:shadow-[3px_3px_0px_0px] hover:shadow-background/30 transition-all">
-                        <Lock className="w-4 h-4" /> Lock In
-                      </button>
-                    </motion.div>
-                  )}
-                </motion.div>
-              )}
-
-              {/* BOX PHASE */}
+              {/* BOX PHASE — admin-assigned roster */}
               {phase === 'box' && (
                 <motion.div key="box" {...pageT}>
                   <div className="border-2 border-foreground/10 p-5 sm:p-6 mb-4">
-                    <button onClick={() => { setPhase('pool'); setLockedPeople([]); }} className="label-mono mb-3 flex items-center gap-1 hover:text-foreground">
-                      <ChevronLeft className="w-3 h-3" /> back to selection
-                    </button>
                     <div className="flex items-center gap-2 mb-1">
                       <Lock className="w-4 h-4" />
-                      <h2 className="text-xl font-bold">YOUR APPRAISAL LIST</h2>
+                      <h2 className="text-xl font-bold">YOUR ASSIGNED DEVELOPERS</h2>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {allLocked
-                        ? 'All appraisals complete! You can go back to select more developers.'
-                        : `${lockedPeople.length} developers locked in. Click someone to start their appraisal.`
+                      {lockedPeople.length === 0
+                        ? 'No developers have been assigned to you yet. Contact an admin to lock in your appraisal roster.'
+                        : allLocked
+                        ? 'All assigned appraisals are complete. Admins will review and release PDFs to developers when ready.'
+                        : `${lockedPeople.length} appraisal${lockedPeople.length === 1 ? '' : 's'} across ${peopleByGroup.length} project group${peopleByGroup.length === 1 ? '' : 's'}. Click to start.`
                       }
                     </p>
                   </div>
 
-                  <div className="space-y-2">
-                    {lockedPeople.map((person, idx) => {
-                      const done = completedReviews.has(person.primaryEmployeeId);
-                      return (
-                        <button
-                          key={person.key}
-                          onClick={() => !done && startReview(idx)}
-                          disabled={done}
-                          className={`w-full flex items-center justify-between p-4 border-2 text-left transition-all ${
-                            done
-                              ? 'border-accent/30 bg-accent/5 cursor-not-allowed'
-                              : 'border-foreground/10 bg-card hover:border-foreground/30 hover:shadow-[3px_3px_0px_0px] hover:shadow-foreground/10 hover:-translate-x-0.5 hover:-translate-y-0.5'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 flex items-center justify-center font-bold text-sm ${done ? 'bg-accent/20 text-accent' : 'bg-foreground text-background'}`}>
-                              {person.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                            </div>
-                            <div>
-                              <span className={`font-bold text-sm ${done ? 'line-through text-muted-foreground' : ''}`}>{person.name}</span>
-                              {person.email && <span className="mono text-[9px] text-muted-foreground block">{person.email}</span>}
-                            </div>
-                          </div>
-                          {done ? (
-                            <span className="mono text-[10px] text-accent font-bold flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> DONE
-                            </span>
-                          ) : (
-                            <span className="mono text-[10px] text-muted-foreground group-hover:text-foreground">APPRAISE →</span>
-                          )}
-                        </button>
-                      );
-                    })}
+                  <div className="space-y-6">
+                    {peopleByGroup.map(group => (
+                      <div key={group.groupName}>
+                        <div className="label-mono mb-2 text-accent">// {group.groupName}</div>
+                        <div className="space-y-2">
+                          {group.items.map(({ person, idx }) => {
+                            const done = completedReviews.has(person.assignmentId);
+                            return (
+                              <button
+                                key={person.key}
+                                onClick={() => !done && startReview(idx)}
+                                disabled={done}
+                                className={`w-full flex items-center justify-between p-4 border-2 text-left transition-all ${
+                                  done
+                                    ? 'border-accent/30 bg-accent/5 cursor-not-allowed'
+                                    : 'border-foreground/10 bg-card hover:border-foreground/30 hover:shadow-[3px_3px_0px_0px] hover:shadow-foreground/10 hover:-translate-x-0.5 hover:-translate-y-0.5'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-10 h-10 flex items-center justify-center font-bold text-sm ${done ? 'bg-accent/20 text-accent' : 'bg-foreground text-background'}`}>
+                                    {person.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                  </div>
+                                  <div>
+                                    <span className={`font-bold text-sm ${done ? 'line-through text-muted-foreground' : ''}`}>{person.name}</span>
+                                    {person.email && <span className="mono text-[9px] text-muted-foreground block">{person.email}</span>}
+                                  </div>
+                                </div>
+                                {done ? (
+                                  <span className="mono text-[10px] text-accent font-bold flex items-center gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> SUBMITTED
+                                  </span>
+                                ) : (
+                                  <span className="mono text-[10px] text-muted-foreground">APPRAISE →</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
-                  {allLocked && (
+                  {allLocked && lockedPeople.length > 0 && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="border-2 border-accent p-8 mt-6 text-center">
                       <div className="text-3xl mb-2">✓</div>
                       <h3 className="text-lg font-bold mb-1">ALL APPRAISALS COMPLETE</h3>
-                      <p className="text-sm text-muted-foreground mb-4">Thank you. Each developer has been notified that their results are ready.</p>
-                      <button onClick={() => { setPhase('pool'); setLockedPeople([]); setSelectedKeys(new Set()); }} className="mono text-xs text-accent hover:underline">
-                        ← Select more developers to appraise
-                      </button>
+                      <p className="text-sm text-muted-foreground">Thank you. Admins have been notified and will release reports to developers when ready.</p>
                     </motion.div>
                   )}
                 </motion.div>
@@ -421,6 +387,9 @@ export default function EmployeeHub() {
                     <h2 className="text-lg font-bold mb-0.5">{currentCat.name}</h2>
                     <p className="text-sm text-muted-foreground mb-4">
                       For: <span className="font-bold text-foreground">{lockedPeople[currentPersonIdx]?.name}</span>
+                      {lockedPeople[currentPersonIdx]?.groupName && (
+                        <span className="text-muted-foreground"> · Project: {lockedPeople[currentPersonIdx].groupName}</span>
+                      )}
                     </p>
 
                     {/* Progress */}
@@ -511,7 +480,9 @@ export default function EmployeeHub() {
                     <div className="label-mono mb-2">// recorded</div>
                     <h2 className="text-xl font-bold mb-2">APPRAISAL SAVED</h2>
                     <p className="text-sm text-muted-foreground mb-6">
-                      Your appraisal of {lockedPeople[currentPersonIdx]?.name} has been recorded, and they've been emailed that their results are ready.
+                      Your appraisal of {lockedPeople[currentPersonIdx]?.name}
+                      {lockedPeople[currentPersonIdx]?.groupName ? ` (${lockedPeople[currentPersonIdx].groupName})` : ''} has been submitted for admin review.
+                      The developer will receive their PDF once an admin releases the report — your identity is not shown.
                     </p>
                     <button
                       onClick={() => { setPhase('box'); setAnswers({}); setCurrentCatIdx(0); }}
@@ -525,11 +496,6 @@ export default function EmployeeHub() {
             </AnimatePresence>
           )}
 
-          {/* ═══ MY RESULTS TAB ═══ */}
-          {activeTab === 'growth' && (
-            <GrowthTab user={user} profile={profile} categories={categories} questions={questions} />
-          )}
-
           {/* ═══ TEAM PULSE TAB ═══ */}
           {activeTab === 'pulse' && (
             <motion.div {...pageT} className="relative">
@@ -540,9 +506,9 @@ export default function EmployeeHub() {
                 <div className={cn('space-y-4', teamLoading && pulseProgress.showQuickPulse && 'opacity-75 transition-opacity')}>
                   <div className="border-2 border-foreground/10 p-5 sm:p-6">
                     <div className="label-mono mb-2">// team_pulse</div>
-                    <h2 className="text-xl font-bold mb-1">Aggregate Team Insights</h2>
+                    <h2 className="text-xl font-bold mb-1">Your Team at a Glance</h2>
                     <p className="text-sm text-muted-foreground">
-                      Anonymous, aggregate data. No individual names or rankings — just how we're doing as a team.
+                      Aggregate scores for developers assigned to you. Individual names are not shown in developer PDFs.
                     </p>
                   </div>
 

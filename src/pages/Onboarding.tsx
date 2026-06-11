@@ -20,7 +20,7 @@ export default function Onboarding() {
           <img src={prodgLogo} alt="ProDG" className="h-7 w-7" />
           <span className="text-xl font-bold tracking-tight">ProDG</span>
           <span className="hidden sm:block label-mono border-l-2 border-foreground/10 pl-3">
-            360° Peer Review
+            Performance Appraisal
           </span>
         </div>
         <button
@@ -97,7 +97,7 @@ function SlideWelcome() {
       transition={{ duration: 0.2 }}
       className="max-w-3xl w-full"
     >
-      <div className="label-mono mb-4 sm:mb-6">// peer_review</div>
+      <div className="label-mono mb-4 sm:mb-6">// performance_appraisal</div>
 
       <h1 className="text-[1.65rem] sm:text-4xl lg:text-5xl xl:text-6xl font-bold leading-[1.08] mb-2">
         NOT AWARDS.
@@ -117,12 +117,12 @@ function SlideWelcome() {
       </h1>
 
       <p className="text-muted-foreground text-base sm:text-lg max-w-xl leading-relaxed mb-10">
-        ProDG 360° is a peer evaluation tool for teams that build together.
-        Honest, anonymous feedback — so everyone can level up.
+        ProDG Performance Appraisal helps PMs evaluate developers with structured feedback.
+        Developers receive their results as a PDF by email — no login required.
       </p>
 
       <div className="flex flex-wrap gap-2">
-        {['Anonymous', 'Peer-to-Peer', 'Growth-Focused'].map(tag => (
+        {['PM-Led', 'PDF Delivery', 'Growth-Focused'].map(tag => (
           <span
             key={tag}
             className="mono text-[10px] uppercase tracking-[0.15em] px-3 py-2 border-2 border-foreground/10 bg-card font-medium"
@@ -138,9 +138,9 @@ function SlideWelcome() {
 /* ─── Slide 2: How It Works ─── */
 function SlideHow() {
   const steps = [
-    { num: '01', title: 'PICK', desc: 'Choose the people you\'ve worked with closely enough to give honest feedback.' },
-    { num: '02', title: 'LOCK', desc: 'Lock them into your review box. No second-guessing — commit to your selections.' },
-    { num: '03', title: 'REVIEW', desc: 'Give each person real, anonymous feedback on collaboration, reliability, and growth.' },
+    { num: '01', title: 'ASSIGN', desc: 'Admins lock in which developers each PM will appraise.' },
+    { num: '02', title: 'APPRAISE', desc: 'PMs sign in and complete structured reviews for their assigned team.' },
+    { num: '03', title: 'DELIVER', desc: 'Developers receive a PDF of their results by email. Reviewer identity is never shown.' },
   ];
 
   return (
@@ -154,7 +154,7 @@ function SlideHow() {
       <div className="label-mono mb-4 sm:mb-6">// how_it_works</div>
 
       <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold leading-[1.1] mb-6 sm:mb-10 break-words">
-        PICK → LOCK → REVIEW
+        ASSIGN → APPRAISE → DELIVER
       </h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -201,7 +201,7 @@ function SlideStart({ navigate }: { navigate: (path: string) => void }) {
 
       <p className="text-muted-foreground text-sm sm:text-lg leading-relaxed max-w-lg mb-8 sm:mb-10">
         This isn't about looking good. It's about helping each other get better.
-        Sign in and start reviewing your peers — anonymously and honestly.
+        PMs and admins sign in to run appraisals. Developers check their email for results.
       </p>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-6 sm:mb-8 w-full">

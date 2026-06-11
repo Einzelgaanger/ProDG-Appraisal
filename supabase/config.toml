@@ -21,5 +21,14 @@ verify_jwt = false
 [functions.notify-appraisal]
 verify_jwt = true
 
+[functions.notify-appraisal-submitted]
+verify_jwt = true
+
+[functions.release-appraisal]
+verify_jwt = true
+
 [functions.bulk-create-users]
 verify_jwt = true
+
+[functions.download-appraisal-result]
+verify_jwt = false

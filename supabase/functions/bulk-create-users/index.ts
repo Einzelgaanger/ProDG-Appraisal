@@ -10,7 +10,7 @@ const DEFAULT_SUBSIDIARY = "ProDG";
 type ImportUser = {
   email: string;
   name?: string;
-  role?: "pm" | "developer";
+  role?: "pm" | "developer" | "admin";
   subsidiary?: string;
 };
 
@@ -107,6 +107,7 @@ Deno.serve(async (req) => {
       if (!email) continue;
       const name = raw.name || email.split("@")[0];
       const isPM = raw.role === "pm";
+      const isAdmin = raw.role === "admin";
       const subsidiaryName = raw.subsidiary || default_subsidiary || DEFAULT_SUBSIDIARY;
 
       try {
@@ -175,16 +176,30 @@ Deno.serve(async (req) => {
           employee_id: employeeId,
         });
 
-        if (isPM) {
+        if (isAdmin) {
           await supabaseAdmin
             .from("user_roles")
-            .upsert({ user_id: userId, role: "pm" }, { onConflict: "user_id,role" });
-        } else {
+            .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
           await supabaseAdmin
             .from("user_roles")
             .delete()
             .eq("user_id", userId)
             .eq("role", "pm");
+        } else if (isPM) {
+          await supabaseAdmin
+            .from("user_roles")
+            .upsert({ user_id: userId, role: "pm" }, { onConflict: "user_id,role" });
+          await supabaseAdmin
+            .from("user_roles")
+            .delete()
+            .eq("user_id", userId)
+            .eq("role", "admin");
+        } else {
+          await supabaseAdmin
+            .from("user_roles")
+            .delete()
+            .eq("user_id", userId)
+            .in("role", ["pm", "admin"]);
         }
       } catch (err) {
         results.errors.push(`${email}: ${err instanceof Error ? err.message : String(err)}`);

@@ -457,6 +457,86 @@ export type Database = {
         }
         Relationships: []
       }
+      appraisal_result_deliveries: {
+        Row: {
+          created_at: string
+          employee_id: string
+          expires_at: string
+          id: string
+          response_id: string
+          storage_path: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          expires_at?: string
+          id?: string
+          response_id: string
+          storage_path: string
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          expires_at?: string
+          id?: string
+          response_id?: string
+          storage_path?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appraisal_result_deliveries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appraisal_result_deliveries_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "survey_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pm_developer_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          employee_id: string
+          group_name: string
+          id: string
+          pm_user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          employee_id: string
+          group_name?: string
+          id?: string
+          pm_user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          employee_id?: string
+          group_name?: string
+          id?: string
+          pm_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pm_developer_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -494,18 +574,21 @@ export type Database = {
       }
       review_completions: {
         Row: {
+          assignment_id: string | null
           completed_at: string | null
           employee_id: string
           id: string
           reviewer_id: string
         }
         Insert: {
+          assignment_id?: string | null
           completed_at?: string | null
           employee_id: string
           id?: string
           reviewer_id: string
         }
         Update: {
+          assignment_id?: string | null
           completed_at?: string | null
           employee_id?: string
           id?: string
@@ -684,21 +767,36 @@ export type Database = {
       }
       survey_responses: {
         Row: {
+          admin_notified_at: string | null
+          assignment_id: string | null
           created_at: string | null
           employee_id: string
           id: string
+          released_at: string | null
+          released_by: string | null
+          reviewer_id: string | null
           subsidiary_id: string
         }
         Insert: {
+          admin_notified_at?: string | null
+          assignment_id?: string | null
           created_at?: string | null
           employee_id: string
           id?: string
+          released_at?: string | null
+          released_by?: string | null
+          reviewer_id?: string | null
           subsidiary_id: string
         }
         Update: {
+          admin_notified_at?: string | null
+          assignment_id?: string | null
           created_at?: string | null
           employee_id?: string
           id?: string
+          released_at?: string | null
+          released_by?: string | null
+          reviewer_id?: string | null
           subsidiary_id?: string
         }
         Relationships: [

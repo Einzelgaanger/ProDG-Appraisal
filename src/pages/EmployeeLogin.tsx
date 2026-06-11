@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useEmployeeAuth } from '@/contexts/EmployeeAuthContext';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,8 +23,18 @@ export default function EmployeeLogin() {
     setLoading(true);
     try {
       const { error } = await login(email, password);
-      if (error) setError(error);
-      else navigate('/hub');
+      if (error) {
+        setError(error);
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: roles } = user
+          ? await supabase.from('user_roles').select('role').eq('user_id', user.id)
+          : { data: [] as { role: string }[] };
+        const roleSet = new Set((roles ?? []).map(r => r.role));
+        if (roleSet.has('admin')) navigate('/appraisal');
+        else if (roleSet.has('pm')) navigate('/hub');
+        else navigate('/developer-info');
+      }
     } catch {
       setError('An error occurred. Please try again.');
     } finally {
@@ -38,7 +49,7 @@ export default function EmployeeLogin() {
         <img src={prodgLogo} alt="" className="h-9 w-9" />
         <div className="min-w-0 text-left">
           <p className="font-bold text-base leading-tight">ProDG</p>
-          <p className="text-[11px] text-muted-foreground uppercase tracking-wider">360° Peer Review</p>
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Performance Appraisal</p>
         </div>
       </div>
 
@@ -51,10 +62,10 @@ export default function EmployeeLogin() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <img src={prodgLogo} alt="ProDG" className="h-10 w-10 mb-6 invert" />
             <div className="mono text-accent text-xs mb-6 uppercase tracking-[0.2em]">// authenticate</div>
-            <h2 className="text-4xl font-bold text-background mb-4">PEER<br/>REVIEW_</h2>
+            <h2 className="text-4xl font-bold text-background mb-4">PM<br/>PORTAL_</h2>
             <p className="text-background/50 text-sm leading-relaxed max-w-sm mb-8">
-              Sign in to give anonymous feedback to your teammates.
-              Not for awards. For growth.
+              Sign in to complete developer appraisals assigned to you.
+              Developers receive their results by email — no login needed.
             </p>
             <div className="flex gap-2">
               {['Anonymous', 'Honest', 'Secure'].map(tag => (

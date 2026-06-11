@@ -21,17 +21,19 @@ const LOGO_URL = 'https://appraisal.prodg.studio/favicon.png'
 interface AppraisalReadyEmailProps {
   siteName: string
   recipientName?: string
-  resultsUrl: string
+  projectName?: string
+  downloadUrl: string
 }
 
 export const AppraisalReadyEmail = ({
   siteName,
   recipientName,
-  resultsUrl,
+  projectName,
+  downloadUrl,
 }: AppraisalReadyEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Your performance appraisal results are ready to view</Preview>
+    <Preview>Your performance appraisal PDF is ready to download</Preview>
     <Body style={main}>
       <Container style={outer}>
         <Section style={headerBand}>
@@ -41,21 +43,23 @@ export const AppraisalReadyEmail = ({
         </Section>
 
         <Section style={card}>
-          <Heading style={h1}>Your appraisal is ready</Heading>
+          <Heading style={h1}>Your appraisal PDF is ready</Heading>
           <Text style={lead}>
             {recipientName ? `Hi ${recipientName}, ` : 'Hi, '}
-            your manager has completed your performance appraisal on <strong>{siteName}</strong>.
-            You can now log in to view your results — your scores across each area and the written feedback.
+            your performance appraisal{projectName ? <> for <strong>{projectName}</strong></> : ''} on{' '}
+            <strong>{siteName}</strong> is complete.
+            Download your neatly formatted PDF below — scores, category averages, and written feedback included.
+            No login is required, and your reviewer is not identified.
           </Text>
           <Section style={btnWrap}>
-            <Button style={button} href={resultsUrl}>
-              View my results
+            <Button style={button} href={downloadUrl}>
+              Download my appraisal PDF
             </Button>
           </Section>
           <Text style={muted}>
             If the button does not work, copy this URL into your browser:
           </Text>
-          <Text style={linkBox}>{resultsUrl}</Text>
+          <Text style={linkBox}>{downloadUrl}</Text>
         </Section>
 
         <Hr style={hr} />

@@ -14,12 +14,8 @@ const PM_TABS: TabDef[] = [
   { id: 'pulse', label: 'Team Pulse', description: 'Team aggregates', icon: ClipboardList },
 ];
 
-const DEVELOPER_TABS: TabDef[] = [
-  { id: 'growth', label: 'My Results', description: 'Your appraisal', icon: BarChart3 },
-];
-
-export function tabsForRole(isPM: boolean): TabDef[] {
-  return isPM ? PM_TABS : DEVELOPER_TABS;
+export function tabsForRole(_isPM?: boolean): TabDef[] {
+  return PM_TABS;
 }
 
 interface HubAppShellProps {

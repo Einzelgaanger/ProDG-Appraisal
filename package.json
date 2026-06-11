@@ -14,8 +14,9 @@
     "test:watch": "vitest",
     "supabase:link": "supabase link --project-ref pklukpdoymfmzamdyjbt",
     "supabase:push": "supabase db push",
-    "supabase:deploy": "supabase functions deploy notify-appraisal && supabase functions deploy bulk-create-users",
-    "supabase:deploy:all": "supabase functions deploy"
+    "supabase:deploy": "supabase functions deploy notify-appraisal-submitted && supabase functions deploy release-appraisal && supabase functions deploy bulk-create-users",
+    "supabase:deploy:all": "supabase functions deploy",
+    "seed:users": "node scripts/seed-prodg-users.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
