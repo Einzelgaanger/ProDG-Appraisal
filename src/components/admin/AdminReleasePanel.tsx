@@ -84,7 +84,7 @@ export default function AdminReleasePanel({
         <Send className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
         <h3 className="font-bold mb-2">No pending releases</h3>
         <p className="text-sm text-muted-foreground">
-          When PMs submit appraisals, they appear here for your review. Release when ready to email the developer their PDF.
+          When a PM finishes all reviews in a project group, you are emailed and submissions appear here. Release each report when ready to email the developer their PDF.
         </p>
       </div>
     )

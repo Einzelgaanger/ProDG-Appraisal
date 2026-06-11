@@ -315,7 +315,7 @@ export default function EmployeeHub() {
                       {lockedPeople.length === 0
                         ? 'No developers have been assigned to you yet. Contact an admin to lock in your appraisal roster.'
                         : allLocked
-                        ? 'All assigned appraisals are complete. Admins will review and release PDFs to developers when ready.'
+                        ? 'All assigned appraisals are complete. Admins have been notified per project group and will release PDFs when ready.'
                         : `${lockedPeople.length} appraisal${lockedPeople.length === 1 ? '' : 's'} across ${peopleByGroup.length} project group${peopleByGroup.length === 1 ? '' : 's'}. Click to start.`
                       }
                     </p>
@@ -367,7 +367,7 @@ export default function EmployeeHub() {
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="border-2 border-accent p-8 mt-6 text-center">
                       <div className="text-3xl mb-2">✓</div>
                       <h3 className="text-lg font-bold mb-1">ALL APPRAISALS COMPLETE</h3>
-                      <p className="text-sm text-muted-foreground">Thank you. Admins have been notified and will release reports to developers when ready.</p>
+                      <p className="text-sm text-muted-foreground">Thank you. Admins are emailed once each project group is fully reviewed, then release reports to developers when ready.</p>
                     </motion.div>
                   )}
                 </motion.div>
@@ -481,8 +481,8 @@ export default function EmployeeHub() {
                     <h2 className="text-xl font-bold mb-2">APPRAISAL SAVED</h2>
                     <p className="text-sm text-muted-foreground mb-6">
                       Your appraisal of {lockedPeople[currentPersonIdx]?.name}
-                      {lockedPeople[currentPersonIdx]?.groupName ? ` (${lockedPeople[currentPersonIdx].groupName})` : ''} has been submitted for admin review.
-                      The developer will receive their PDF once an admin releases the report — your identity is not shown.
+                      {lockedPeople[currentPersonIdx]?.groupName ? ` (${lockedPeople[currentPersonIdx].groupName})` : ''} has been saved.
+                      Admins are notified once every developer in that project group is reviewed. PDFs go to developers after admin release — your identity is not shown.
                     </p>
                     <button
                       onClick={() => { setPhase('box'); setAnswers({}); setCurrentCatIdx(0); }}

@@ -24,6 +24,9 @@ verify_jwt = true
 [functions.notify-appraisal-submitted]
 verify_jwt = true
 
+[functions.notify-pm-assignment]
+verify_jwt = true
+
 [functions.release-appraisal]
 verify_jwt = true
 

@@ -160,7 +160,17 @@ export default function PMAssignmentsPanel() {
       const { error: insError } = await supabase.from('pm_developer_assignments').insert(rows);
       if (insError) throw insError;
 
-      toast.success(`Locked in "${name}"`);
+      supabase.functions
+        .invoke('notify-pm-assignment', {
+          body: {
+            pmUserId: selectedPmId,
+            groupName: name,
+            developerIds: Array.from(selectedDevIds),
+          },
+        })
+        .catch(err => console.error('notify-pm-assignment failed', err));
+
+      toast.success(`Locked in "${name}" — PM notified`);
       setActiveGroupName(name);
       await load();
     } catch (err) {

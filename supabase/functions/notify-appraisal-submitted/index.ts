@@ -1,7 +1,7 @@
 import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { AppraisalPendingAdminEmail } from '../_shared/email-templates/appraisal-pending-admin.tsx'
+import { AppraisalGroupPendingAdminEmail } from '../_shared/email-templates/appraisal-group-pending-admin.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +12,10 @@ const SITE_URL = Deno.env.get('SITE_URL') ?? 'https://appraisal.prodg.studio'
 const FROM_DOMAIN = 'appraisal.prodg.studio'
 const SENDER_DOMAIN = 'notify.appraisal.prodg.studio'
 const SITE_NAME = 'ProDG Performance Appraisal'
+
+function assignmentIdsKey(ids: string[]): string {
+  return [...ids].sort().join(',')
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
@@ -62,8 +66,8 @@ Deno.serve(async (req) => {
     })
   }
 
-  if (!employeeId || !responseId) {
-    return new Response(JSON.stringify({ error: 'employeeId and responseId are required' }), {
+  if (!employeeId || !responseId || !assignmentId) {
+    return new Response(JSON.stringify({ error: 'employeeId, responseId, and assignmentId are required' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
@@ -82,13 +86,13 @@ Deno.serve(async (req) => {
   }
 
   if (!isAdmin) {
-    let q = supabase
+    const { data: assignment } = await supabase
       .from('pm_developer_assignments')
       .select('id')
       .eq('pm_user_id', user.id)
       .eq('employee_id', employeeId)
-    if (assignmentId) q = q.eq('id', assignmentId)
-    const { data: assignment } = await q.maybeSingle()
+      .eq('id', assignmentId)
+      .maybeSingle()
     if (!assignment) {
       return new Response(JSON.stringify({ error: 'Developer not assigned to you' }), {
         status: 403,
@@ -99,7 +103,7 @@ Deno.serve(async (req) => {
 
   const { data: response } = await supabase
     .from('survey_responses')
-    .select('id, created_at, admin_notified_at')
+    .select('id')
     .eq('id', responseId)
     .eq('employee_id', employeeId)
     .maybeSingle()
@@ -111,36 +115,82 @@ Deno.serve(async (req) => {
     })
   }
 
-  if (response.admin_notified_at) {
-    return new Response(JSON.stringify({ success: true, skipped: 'already_notified' }), {
+  const { data: currentAssignment } = await supabase
+    .from('pm_developer_assignments')
+    .select('id, group_name, pm_user_id')
+    .eq('id', assignmentId)
+    .maybeSingle()
+
+  if (!currentAssignment) {
+    return new Response(JSON.stringify({ success: true, groupComplete: false, skipped: 'no_assignment' }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 
-  const { data: employee } = await supabase
-    .from('employees')
-    .select('name')
-    .eq('id', employeeId)
-    .maybeSingle()
+  const pmUserId = currentAssignment.pm_user_id
+  const projectName = currentAssignment.group_name
+
+  const { data: groupAssignments } = await supabase
+    .from('pm_developer_assignments')
+    .select('id, employee_id, employees(name)')
+    .eq('pm_user_id', pmUserId)
+    .eq('group_name', projectName)
+
+  const groupAssignmentIds = (groupAssignments ?? []).map((a) => a.id)
+  if (!groupAssignmentIds.length) {
+    return new Response(JSON.stringify({ success: true, groupComplete: false }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
+  const { data: completions } = await supabase
+    .from('review_completions')
+    .select('assignment_id')
+    .eq('reviewer_id', pmUserId)
+    .in('assignment_id', groupAssignmentIds)
+
+  const completedSet = new Set((completions ?? []).map((c) => c.assignment_id))
+  const allComplete = groupAssignmentIds.every((id) => completedSet.has(id))
+
+  if (!allComplete) {
+    return new Response(JSON.stringify({ success: true, groupComplete: false }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
+  const assignmentKey = assignmentIdsKey(groupAssignmentIds)
+  const { data: priorNotifications } = await supabase
+    .from('pm_group_admin_notifications')
+    .select('assignment_ids')
+    .eq('pm_user_id', pmUserId)
+    .eq('group_name', projectName)
+
+  const alreadyNotified = (priorNotifications ?? []).some(
+    (row) => assignmentIdsKey(row.assignment_ids as string[]) === assignmentKey,
+  )
+
+  if (alreadyNotified) {
+    return new Response(JSON.stringify({ success: true, groupComplete: true, skipped: 'already_notified' }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
 
   const { data: pmProfile } = await supabase
     .from('profiles')
     .select('name')
-    .eq('id', user.id)
+    .eq('id', pmUserId)
     .maybeSingle()
 
-  let projectName: string | undefined
-  if (assignmentId) {
-    const { data: a } = await supabase
-      .from('pm_developer_assignments')
-      .select('group_name')
-      .eq('id', assignmentId)
-      .maybeSingle()
-    projectName = a?.group_name ?? undefined
-  }
+  const developerNames = (groupAssignments ?? [])
+    .map((a) => (a.employees as { name: string } | null)?.name)
+    .filter((name): name is string => Boolean(name))
+    .sort((a, b) => a.localeCompare(b))
 
-  const completedAt = new Date(response.created_at).toLocaleDateString('en-GB', {
+  const completedAt = new Date().toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -150,61 +200,66 @@ Deno.serve(async (req) => {
 
   const { data: adminRoles } = await supabase.from('user_roles').select('user_id').eq('role', 'admin')
   const adminIds = (adminRoles ?? []).map((r) => r.user_id)
-  if (!adminIds.length) {
-    await supabase.from('survey_responses').update({ admin_notified_at: new Date().toISOString() }).eq('id', responseId)
-    return new Response(JSON.stringify({ success: true, skipped: 'no_admins' }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
-
-  const { data: adminProfiles } = await supabase
-    .from('profiles')
-    .select('email, name')
-    .in('id', adminIds)
 
   const templateProps = {
-    developerName: employee?.name ?? 'Developer',
     projectName,
     pmName: pmProfile?.name,
+    developerNames,
     completedAt,
     adminUrl,
   }
 
-  const html = await renderAsync(React.createElement(AppraisalPendingAdminEmail, templateProps))
-  const text = await renderAsync(React.createElement(AppraisalPendingAdminEmail, templateProps), { plainText: true })
+  const html = await renderAsync(React.createElement(AppraisalGroupPendingAdminEmail, templateProps))
+  const text = await renderAsync(React.createElement(AppraisalGroupPendingAdminEmail, templateProps), { plainText: true })
 
   let queued = 0
-  for (const admin of adminProfiles ?? []) {
-    if (!admin.email) continue
-    const messageId = crypto.randomUUID()
-    await supabase.from('email_send_log').insert({
-      message_id: messageId,
-      template_name: 'appraisal-pending-admin',
-      recipient_email: admin.email,
-      status: 'pending',
-    })
-    const { error } = await supabase.rpc('enqueue_email', {
-      queue_name: 'transactional_emails',
-      payload: {
+  if (adminIds.length) {
+    const { data: adminProfiles } = await supabase
+      .from('profiles')
+      .select('email, name')
+      .in('id', adminIds)
+
+    for (const admin of adminProfiles ?? []) {
+      if (!admin.email) continue
+      const messageId = crypto.randomUUID()
+      await supabase.from('email_send_log').insert({
         message_id: messageId,
-        to: admin.email,
-        from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
-        sender_domain: SENDER_DOMAIN,
-        subject: `Appraisal ready for review — ${employee?.name ?? 'developer'}`,
-        html,
-        text,
-        purpose: 'transactional',
-        label: 'appraisal-pending-admin',
-        queued_at: new Date().toISOString(),
-      },
-    })
-    if (!error) queued++
+        template_name: 'appraisal-group-pending-admin',
+        recipient_email: admin.email,
+        status: 'pending',
+      })
+      const { error } = await supabase.rpc('enqueue_email', {
+        queue_name: 'transactional_emails',
+        payload: {
+          message_id: messageId,
+          to: admin.email,
+          from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+          sender_domain: SENDER_DOMAIN,
+          subject: `Project reviews complete — ${projectName}`,
+          html,
+          text,
+          purpose: 'transactional',
+          label: 'appraisal-group-pending-admin',
+          queued_at: new Date().toISOString(),
+        },
+      })
+      if (!error) queued++
+    }
   }
 
-  await supabase.from('survey_responses').update({ admin_notified_at: new Date().toISOString() }).eq('id', responseId)
+  await supabase.from('pm_group_admin_notifications').insert({
+    pm_user_id: pmUserId,
+    group_name: projectName,
+    assignment_ids: groupAssignmentIds,
+  })
 
-  return new Response(JSON.stringify({ success: true, adminsNotified: queued }), {
+  await supabase
+    .from('survey_responses')
+    .update({ admin_notified_at: new Date().toISOString() })
+    .in('assignment_id', groupAssignmentIds)
+    .is('admin_notified_at', null)
+
+  return new Response(JSON.stringify({ success: true, groupComplete: true, adminsNotified: queued }), {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
