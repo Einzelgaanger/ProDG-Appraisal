@@ -47,12 +47,14 @@ if (!defaultPassword || defaultPassword.length < 8) {
 
 const SUBSIDIARY = 'ProDG';
 
-/** @type {{ email: string; name: string; role: 'admin' | 'pm' | 'developer' }[]} */
+/** @type {{ email: string; name: string; role?: 'admin' | 'pm' | 'developer'; roles?: ('admin' | 'pm')[] }[]} */
 const ROSTER = [
   { email: 'wayne@prodg.studio', name: 'Wayne Asava', role: 'admin' },
   { email: 'noella@prodg.studio', name: 'Noella Spitz', role: 'admin' },
   { email: 'abdul@prodg.studio', name: 'Abdul Rehmtulla', role: 'admin' },
   { email: 'arabella@prodg.studio', name: 'Arabella Fanisheba', role: 'admin' },
+  { email: 'alfred@prodg.studio', name: 'Alfred', roles: ['admin', 'pm'] },
+  { email: 'binfred.ke@gmail.com', name: 'Alfiema', roles: ['admin', 'pm'] },
   { email: 'jerome@prodg.studio', name: 'Jerome Mahia', role: 'pm' },
   { email: 'sumeiya@prodg.studio', name: 'Sumeiya Abdulle', role: 'pm' },
   { email: 'venessa@prodg.studio', name: 'Venessa Chebukwa', role: 'pm' },
@@ -103,10 +105,20 @@ async function findUserIdByEmail(email) {
   return profile?.id ?? null;
 }
 
+function personRoles(person) {
+  if (person.roles?.length) return person.roles;
+  if (person.role === 'admin' || person.role === 'pm' || person.role === 'developer') return [person.role];
+  return [];
+}
+
 async function upsertEmployee(subsidiaryId, person) {
-  const isPM = person.role === 'pm';
-  const department =
-    person.role === 'admin' ? 'Admin' : person.role === 'pm' ? 'Project Management' : 'Engineering';
+  const roles = personRoles(person);
+  const isPM = roles.includes('pm');
+  const department = roles.includes('admin')
+    ? 'Admin'
+    : roles.includes('pm')
+      ? 'Project Management'
+      : 'Engineering';
 
   const { data: existing } = await admin
     .from('employees')
@@ -138,15 +150,17 @@ async function upsertEmployee(subsidiaryId, person) {
   return created.id;
 }
 
-async function setRoles(userId, role) {
-  if (role === 'admin') {
+async function setRoles(userId, person) {
+  const roles = new Set(personRoles(person));
+  if (roles.has('admin')) {
     await admin.from('user_roles').upsert({ user_id: userId, role: 'admin' }, { onConflict: 'user_id,role' });
-    await admin.from('user_roles').delete().eq('user_id', userId).eq('role', 'pm');
-  } else if (role === 'pm') {
-    await admin.from('user_roles').upsert({ user_id: userId, role: 'pm' }, { onConflict: 'user_id,role' });
-    await admin.from('user_roles').delete().eq('user_id', userId).eq('role', 'admin');
   } else {
-    await admin.from('user_roles').delete().eq('user_id', userId).in('role', ['admin', 'pm']);
+    await admin.from('user_roles').delete().eq('user_id', userId).eq('role', 'admin');
+  }
+  if (roles.has('pm')) {
+    await admin.from('user_roles').upsert({ user_id: userId, role: 'pm' }, { onConflict: 'user_id,role' });
+  } else {
+    await admin.from('user_roles').delete().eq('user_id', userId).eq('role', 'pm');
   }
 }
 
@@ -183,7 +197,7 @@ async function seedPerson(subsidiaryId, person) {
     employee_id: employeeId,
   });
 
-  await setRoles(userId, person.role);
+  await setRoles(userId, person);
   return action;
 }
 
@@ -198,7 +212,8 @@ async function main() {
       const action = await seedPerson(subsidiaryId, person);
       if (action === 'created') summary.created++;
       else summary.updated++;
-      console.log(`  ✓ ${person.role.padEnd(9)} ${person.email}`);
+      const roleLabel = (person.roles ?? [person.role]).join('+');
+      console.log(`  ✓ ${roleLabel.padEnd(9)} ${person.email}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       summary.errors.push(`${person.email}: ${msg}`);
