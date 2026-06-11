@@ -12,8 +12,10 @@
     "start": "vite preview --host 0.0.0.0",
     "test": "vitest run",
     "test:watch": "vitest",
+    "supabase:link": "supabase link --project-ref pklukpdoymfmzamdyjbt",
     "supabase:push": "supabase db push",
-    "supabase:deploy": "supabase functions deploy notify-appraisal && supabase functions deploy bulk-create-users"
+    "supabase:deploy": "supabase functions deploy notify-appraisal && supabase functions deploy bulk-create-users",
+    "supabase:deploy:all": "supabase functions deploy"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

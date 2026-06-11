@@ -11,7 +11,7 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
   throw new Error(
     '[ProDG] Supabase env vars are missing or empty.\n\n' +
       'Add a .env file in the project root (see .env.example):\n' +
-      '  VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co\n' +
+      '  VITE_SUPABASE_URL=https://pklukpdoymfmzamdyjbt.supabase.co\n' +
       '  VITE_SUPABASE_PUBLISHABLE_KEY=<anon public key from Supabase>\n\n' +
       '(You can use VITE_SUPABASE_ANON_KEY instead of PUBLISHABLE_KEY.)\n\n' +
       'Dashboard: Project Settings → API.\n' +

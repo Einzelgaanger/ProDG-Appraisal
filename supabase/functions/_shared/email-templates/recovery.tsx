@@ -16,7 +16,7 @@ import {
   Text,
 } from 'npm:@react-email/components@0.0.22'
 
-const LOGO_URL = 'https://sfwltphcerfsfyrtiwwk.supabase.co/storage/v1/object/public/email-assets/prodg-logo.png'
+const LOGO_URL = 'https://appraisal.prodg.studio/favicon.png'
 
 interface RecoveryEmailProps {
   siteName: string

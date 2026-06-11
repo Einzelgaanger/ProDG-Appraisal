@@ -67,12 +67,9 @@ BEGIN
     v_supabase_url := NULL;
   END;
 
-  -- Fallback to hardcoded values if vault entries missing
-  IF v_supabase_url IS NULL THEN
-    v_supabase_url := 'https://sfwltphcerfsfyrtiwwk.supabase.co';
-  END IF;
-  IF v_anon_key IS NULL THEN
-    v_anon_key := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmd2x0cGhjZXJmc2Z5cnRpd3drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4Njk3NjAsImV4cCI6MjA5MDQ0NTc2MH0.6Y6q3rRYIbR6RSy2CFqF_wKMtqqii2G3I2HQiiUaFoo';
+  -- Vault secrets (project_url, anon_key) must be configured after deploy.
+  IF v_supabase_url IS NULL OR v_anon_key IS NULL THEN
+    RETURN NEW;
   END IF;
 
   -- Fire-and-forget HTTP call to send-transactional-email
