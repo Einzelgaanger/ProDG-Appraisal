@@ -171,17 +171,23 @@ export default function PMAssignmentsPanel({
       const { error: insError } = await supabase.from('pm_developer_assignments').insert(rows);
       if (insError) throw insError;
 
-      supabase.functions
-        .invoke('notify-pm-assignment', {
-          body: {
-            pmUserId: selectedPmId,
-            groupName: name,
-            developerIds: Array.from(selectedDevIds),
-          },
-        })
-        .catch(err => console.error('notify-pm-assignment failed', err));
+      const { data: notifyData, error: notifyError } = await supabase.functions.invoke('notify-pm-assignment', {
+        body: {
+          pmUserId: selectedPmId,
+          groupName: name,
+          developerIds: Array.from(selectedDevIds),
+        },
+      });
 
-      toast.success(`Locked in "${name}" — PM notified`);
+      if (notifyError) {
+        console.error('notify-pm-assignment failed', notifyError);
+        toast.error('Group saved, but PM notification email failed. Try saving again.');
+      } else if (notifyData?.error) {
+        console.error('notify-pm-assignment error', notifyData.error);
+        toast.error(`Group saved, but email failed: ${notifyData.error}`);
+      } else {
+        toast.success(`Locked in "${name}" — PM emailed at ${notifyData?.emailed ?? 'their address'}`);
+      }
       setActiveGroupName(name);
       await load();
       onSaved?.();

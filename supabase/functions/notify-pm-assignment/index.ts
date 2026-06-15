@@ -2,6 +2,7 @@ import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { PmAssignmentEmail } from '../_shared/email-templates/pm-assignment.tsx'
+import { triggerEmailQueueProcessor } from '../_shared/trigger-email-queue.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,34 @@ const SITE_URL = Deno.env.get('SITE_URL') ?? 'https://appraisal.prodg.studio'
 const FROM_DOMAIN = 'appraisal.prodg.studio'
 const SENDER_DOMAIN = 'notify.appraisal.prodg.studio'
 const SITE_NAME = 'ProDG Performance Appraisal'
+
+async function resolvePmEmail(
+  supabase: ReturnType<typeof createClient>,
+  pmUserId: string,
+): Promise<{ email: string; name?: string } | null> {
+  const { data: pmProfile } = await supabase
+    .from('profiles')
+    .select('email, name, employee_id')
+    .eq('id', pmUserId)
+    .maybeSingle()
+
+  if (pmProfile?.email) {
+    return { email: pmProfile.email, name: pmProfile.name ?? undefined }
+  }
+
+  if (pmProfile?.employee_id) {
+    const { data: emp } = await supabase
+      .from('employees')
+      .select('email, name')
+      .eq('id', pmProfile.employee_id)
+      .maybeSingle()
+    if (emp?.email) {
+      return { email: emp.email, name: emp.name ?? pmProfile.name ?? undefined }
+    }
+  }
+
+  return null
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
@@ -79,13 +108,8 @@ Deno.serve(async (req) => {
     })
   }
 
-  const { data: pmProfile } = await supabase
-    .from('profiles')
-    .select('email, name')
-    .eq('id', pmUserId)
-    .maybeSingle()
-
-  if (!pmProfile?.email) {
+  const pmContact = await resolvePmEmail(supabase, pmUserId)
+  if (!pmContact?.email) {
     return new Response(JSON.stringify({ error: 'PM has no email on file' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -103,7 +127,7 @@ Deno.serve(async (req) => {
   const hubUrl = `${SITE_URL}/hub`
 
   const templateProps = {
-    pmName: pmProfile.name ?? undefined,
+    pmName: pmContact.name,
     projectName,
     developerNames,
     hubUrl,
@@ -116,7 +140,7 @@ Deno.serve(async (req) => {
   await supabase.from('email_send_log').insert({
     message_id: messageId,
     template_name: 'pm-assignment',
-    recipient_email: pmProfile.email,
+    recipient_email: pmContact.email,
     status: 'pending',
   })
 
@@ -124,7 +148,7 @@ Deno.serve(async (req) => {
     queue_name: 'transactional_emails',
     payload: {
       message_id: messageId,
-      to: pmProfile.email,
+      to: pmContact.email,
       from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
       subject: `New appraisal assignment — ${projectName}`,
@@ -143,7 +167,9 @@ Deno.serve(async (req) => {
     })
   }
 
-  return new Response(JSON.stringify({ success: true }), {
+  triggerEmailQueueProcessor(supabaseUrl, serviceKey)
+
+  return new Response(JSON.stringify({ success: true, emailed: pmContact.email }), {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })

@@ -2,6 +2,7 @@ import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { AppraisalGroupPendingAdminEmail } from '../_shared/email-templates/appraisal-group-pending-admin.tsx'
+import { triggerEmailQueueProcessor } from '../_shared/trigger-email-queue.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -258,6 +259,10 @@ Deno.serve(async (req) => {
     .update({ admin_notified_at: new Date().toISOString() })
     .in('assignment_id', groupAssignmentIds)
     .is('admin_notified_at', null)
+
+  if (queued > 0) {
+    triggerEmailQueueProcessor(supabaseUrl, serviceKey)
+  }
 
   return new Response(JSON.stringify({ success: true, groupComplete: true, adminsNotified: queued }), {
     status: 200,
