@@ -1,12 +1,14 @@
 /**
  * Create Supabase auth users + profiles for the ProDG appraisal roster.
  *
- * Requires in .env (or environment):
+ * Roster source: scripts/prodg-roster.json (PeopleDets PDF + Alfred/Alfiema)
+ *
+ * Requires in .env:
  *   VITE_SUPABASE_URL (or SUPABASE_URL)
  *   SUPABASE_SERVICE_ROLE_KEY
  *   SEED_DEFAULT_PASSWORD
  *
- * Usage: node scripts/seed-prodg-users.mjs
+ * Usage: npm run seed:users
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync, existsSync } from 'fs';
@@ -45,35 +47,11 @@ if (!defaultPassword || defaultPassword.length < 8) {
   process.exit(1);
 }
 
-const SUBSIDIARY = 'ProDG';
+const ROSTER = JSON.parse(
+  readFileSync(resolve(__dirname, 'prodg-roster.json'), 'utf8'),
+);
 
-/** @type {{ email: string; name: string; role?: 'admin' | 'pm' | 'developer'; roles?: ('admin' | 'pm')[] }[]} */
-const ROSTER = [
-  { email: 'wayne@prodg.studio', name: 'Wayne Asava', role: 'admin' },
-  { email: 'noella@prodg.studio', name: 'Noella Spitz', role: 'admin' },
-  { email: 'abdul@prodg.studio', name: 'Abdul Rehmtulla', role: 'admin' },
-  { email: 'arabella@prodg.studio', name: 'Arabella Fanisheba', role: 'admin' },
-  { email: 'alfred@prodg.studio', name: 'Alfred', roles: ['admin', 'pm'] },
-  { email: 'binfred.ke@gmail.com', name: 'Alfiema', roles: ['admin', 'pm'] },
-  { email: 'jerome@prodg.studio', name: 'Jerome Mahia', role: 'pm' },
-  { email: 'sumeiya@prodg.studio', name: 'Sumeiya Abdulle', role: 'pm' },
-  { email: 'venessa@prodg.studio', name: 'Venessa Chebukwa', role: 'pm' },
-  { email: 'nathan@prodg.studio', name: 'Nathan Mbugua', role: 'pm' },
-  { email: 'waynewilliams2028@gmail.com', name: 'Wayne Williams', role: 'developer' },
-  { email: 'ocomilj@gmail.com', name: 'Jude Ocomi', role: 'developer' },
-  { email: 'munyaolance1@gmail.com', name: 'Munyao Lance', role: 'developer' },
-  { email: 'stoniedev@gmail.com', name: 'Winstone Were', role: 'developer' },
-  { email: 'mugambirintaugu@gmail.com', name: 'Mugambi Rintaugu', role: 'developer' },
-  { email: 'kelvin.maritim0@gmail.com', name: 'Kelvin Maritim', role: 'developer' },
-  { email: 'mannuehkipkirui@gmail.com', name: 'Emmanuel Langat', role: 'developer' },
-  { email: 'emmanuelnomondi@gmail.com', name: 'Emmanuel N. Omondi', role: 'developer' },
-  { email: 'mylesadebayo2021@gmail.com', name: 'Myles Adebayo Johnson', role: 'developer' },
-  { email: 'franklinkaranja774@gmail.com', name: 'Franklin Karanja', role: 'developer' },
-  { email: 'alloys@eutopiantech.com', name: 'Alloys Amasakha', role: 'developer' },
-  { email: 'davengahu007@gmail.com', name: 'Dave Ngahu', role: 'developer' },
-  { email: 'makenawahu@gmail.com', name: 'Makena Wahu', role: 'developer' },
-  { email: 'corneliusmutisya11@gmail.com', name: 'Cornelius Mutisya', role: 'developer' },
-];
+const SUBSIDIARY = 'ProDG';
 
 const admin = createClient(supabaseUrl, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -106,9 +84,7 @@ async function findUserIdByEmail(email) {
 }
 
 function personRoles(person) {
-  if (person.roles?.length) return person.roles;
-  if (person.role === 'admin' || person.role === 'pm' || person.role === 'developer') return [person.role];
-  return [];
+  return person.roles ?? [];
 }
 
 async function upsertEmployee(subsidiaryId, person) {
@@ -120,6 +96,15 @@ async function upsertEmployee(subsidiaryId, person) {
       ? 'Project Management'
       : 'Engineering';
 
+  const row = {
+    name: person.name,
+    email: person.email.toLowerCase().trim(),
+    phone: person.phone ?? null,
+    subsidiary_id: subsidiaryId,
+    is_pm: isPM,
+    department,
+  };
+
   const { data: existing } = await admin
     .from('employees')
     .select('id')
@@ -128,22 +113,13 @@ async function upsertEmployee(subsidiaryId, person) {
     .maybeSingle();
 
   if (existing?.id) {
-    await admin
-      .from('employees')
-      .update({ name: person.name, is_pm: isPM, department })
-      .eq('id', existing.id);
+    await admin.from('employees').update(row).eq('id', existing.id);
     return existing.id;
   }
 
   const { data: created, error } = await admin
     .from('employees')
-    .insert({
-      name: person.name,
-      email: person.email,
-      subsidiary_id: subsidiaryId,
-      is_pm: isPM,
-      department,
-    })
+    .insert(row)
     .select('id')
     .single();
   if (error) throw error;
@@ -205,15 +181,14 @@ async function main() {
   const subsidiaryId = await resolveSubsidiaryId();
   const summary = { created: 0, updated: 0, errors: [] };
 
-  console.log(`Seeding ${ROSTER.length} users into ${SUBSIDIARY}…\n`);
+  console.log(`Seeding ${ROSTER.length} users into ${SUBSIDIARY} (PeopleDets roster)…\n`);
 
   for (const person of ROSTER) {
     try {
       const action = await seedPerson(subsidiaryId, person);
       if (action === 'created') summary.created++;
       else summary.updated++;
-      const roleLabel = (person.roles ?? [person.role]).join('+');
-      console.log(`  ✓ ${roleLabel.padEnd(9)} ${person.email}`);
+      console.log(`  ✓ ${person.roles.join('+').padEnd(12)} ${person.email}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       summary.errors.push(`${person.email}: ${msg}`);
